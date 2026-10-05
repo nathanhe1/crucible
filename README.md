@@ -1,7 +1,5 @@
 # Crucible
 
-A static website for a fictional AI-evaluation lab. It has working demos of stateful environments and eval tooling. There is no build step and no dependencies.
-
 ![Crucible home page](docs/screenshots/index.png)
 
 ## Screenshots
