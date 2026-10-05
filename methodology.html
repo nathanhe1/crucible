@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Methodology · Crucible</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .doc{display:grid;grid-template-columns:minmax(0,1fr);gap:48px;padding-bottom:72px}
+  @media(min-width:1000px){.doc{grid-template-columns:220px minmax(0,1fr)}}
+  .toc{display:none}
+  @media(min-width:1000px){.toc{display:block;position:sticky;top:84px;align-self:start;font-size:14px}}
+  .toc ol{list-style:none;margin:0;padding:0;border-left:1px solid var(--line)}
+  .toc a{display:block;padding:6px 0 6px 14px;margin-left:-1px;border-left:2px solid transparent;text-decoration:none;color:var(--ink-3);line-height:1.35}
+  .toc a:hover{color:var(--ink)}
+  .toc a.on{color:var(--ink);border-left-color:var(--accent)}
+  .toc-m{margin-bottom:8px}
+  @media(min-width:1000px){.toc-m{display:none}}
+  .toc-m summary{cursor:pointer;font:500 13px var(--mono);color:var(--ink-2)}
+  .toc-m ol{margin:10px 0 0;padding-left:20px;font-size:15px;line-height:1.9}
+  article{max-width:68ch}
+  article h2{font-size:clamp(1.5rem,2.6vw,1.95rem);margin-top:2.2em;scroll-margin-top:84px}
+  article h2:first-of-type{margin-top:0}
+  article p,article li{font-family:var(--serif);font-size:1.12rem;line-height:1.7;color:var(--ink-2)}
+  article ul{padding-left:1.2em;margin:0 0 1em}
+  article li{margin-bottom:.45em}
+  article strong{color:var(--ink);font-weight:600}
+  figure{margin:2em 0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+  figcaption{font:13px/1.5 var(--sans);color:var(--ink-3);margin-top:10px}
+  #episode{width:100%;height:auto;display:block}
+  #episode .box{fill:var(--surface-2);stroke:var(--line)}
+  #episode .box.hl{fill:var(--accent-soft);stroke:var(--accent)}
+  #episode .box.bad{stroke:var(--down);stroke-dasharray:4 3}
+  #episode .t1{font:500 13px var(--sans);fill:var(--ink)}
+  #episode .t2{font:11px var(--mono);fill:var(--ink-3)}
+  #episode .ar{stroke:var(--ink-3);stroke-width:1.5;fill:none}
+  #episode .ar.dim{stroke-dasharray:4 4;opacity:.7}
+  #episode .ah{fill:var(--ink-3)}
+  #episode .lbl{font:10.5px var(--mono);fill:var(--accent)}
+  .calc{font-family:var(--sans)}
+  .calc .fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:14px;margin:14px 0}
+  .calc .out{display:flex;flex-wrap:wrap;gap:24px;align-items:baseline;padding-top:14px;border-top:1px solid var(--line)}
+  .calc .big{font:500 2.4rem/1 var(--serif);color:var(--ink)}
+  .calc .sub{font:12px var(--mono);color:var(--ink-3)}
+  .calc p{font-family:var(--sans);font-size:14px;margin:12px 0 0}
+  .deliv{list-style:none;padding:0!important}
+  .deliv li{padding:12px 0 12px 28px;border-bottom:1px solid var(--line);position:relative}
+  .deliv li::before{content:"";position:absolute;left:4px;top:22px;width:10px;height:2px;background:var(--accent)}
+  .cta{text-align:center}
+  .cta .lede{margin:0 auto 24px}
+</style>
+</head>
+<body>
+<div id="site-header"></div>
+
+<main>
+  <div class="page-h"><div class="wrap">
+    <span class="eyebrow">Methodology</span>
+    <h1>How we measure behavior that unfolds over time</h1>
+    <p class="lede">A single-turn benchmark asks whether an answer is right. A stateful environment asks something harder: whether a sequence of choices, each made on partial information, adds up to what you wanted. This is how we keep those measurements honest.</p>
+  </div></div>
+
+  <div class="wrap doc">
+    <nav class="toc" aria-label="Contents">
+      <ol id="tocList"></ol>
+    </nav>
+
+    <article id="article">
+      <details class="toc-m"><summary>Contents</summary><ol id="tocMobile"></ol></details>
+
+      <h2 id="specify">Specify the task before you score it</h2>
+      <p>Most disagreements about an evaluation turn out to be disagreements about the task. Before any model touches an environment, we write down four things and put them under version control alongside the code.</p>
+      <ul>
+        <li><strong>The goal.</strong> Stated in terms of the world, not the transcript. "Keep the warehouse stocked without exceeding the purchasing budget" is a goal; "produce a reasonable restocking plan" is not.</li>
+        <li><strong>The observation.</strong> Exactly what the agent sees at each step, including what it is deliberately not shown. Hidden state is part of the design, and leaking it by accident is one of the most common ways a benchmark becomes easy.</li>
+        <li><strong>The action space.</strong> The legal moves, their arguments, and what happens on an illegal or malformed one. We prefer explicit penalties or no-ops to silent retries, because retries hide how often a model fails to follow the interface.</li>
+        <li><strong>The budget.</strong> Steps, tokens, tool calls, and wall-clock time. A policy that succeeds only with an unlimited budget is a different policy from one that succeeds within the budget a deployment will actually allow.</li>
+      </ul>
+
+      <figure>
+        <svg id="episode" viewBox="0 0 680 220" role="img" aria-labelledby="epTitle">
+          <title id="epTitle">An illustrative episode: start state, action, observation, revised action, outcome</title>
+          <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0L10,5L0,10z"/></marker></defs>
+          <rect class="box" x="10" y="70" width="110" height="72" rx="8"/>
+          <text class="t1" x="65" y="100" text-anchor="middle">Start state</text>
+          <text class="t2" x="65" y="120" text-anchor="middle">s₀ · seed 311</text>
+
+          <rect class="box" x="150" y="70" width="110" height="72" rx="8"/>
+          <text class="t1" x="205" y="100" text-anchor="middle">Action</text>
+          <text class="t2" x="205" y="120" text-anchor="middle">reorder(200)</text>
+
+          <rect class="box hl" x="290" y="70" width="110" height="72" rx="8"/>
+          <text class="t1" x="345" y="100" text-anchor="middle">Observation</text>
+          <text class="t2" x="345" y="120" text-anchor="middle">budget −82%</text>
+
+          <rect class="box" x="430" y="70" width="110" height="72" rx="8"/>
+          <text class="t1" x="485" y="100" text-anchor="middle">Revised action</text>
+          <text class="t2" x="485" y="120" text-anchor="middle">cancel(50%)</text>
+
+          <rect class="box hl" x="570" y="70" width="100" height="72" rx="8"/>
+          <text class="t1" x="620" y="100" text-anchor="middle">Outcome</text>
+          <text class="t2" x="620" y="120" text-anchor="middle">R = +6.4</text>
+
+          <path class="ar" d="M120,106H148" marker-end="url(#arr)"/>
+          <path class="ar" d="M260,106H288" marker-end="url(#arr)"/>
+          <path class="ar" d="M400,106H428" marker-end="url(#arr)"/>
+          <path class="ar" d="M540,106H568" marker-end="url(#arr)"/>
+
+          <text class="lbl" x="205" y="52" text-anchor="middle">predicted: budget −40%</text>
+          <path class="ar dim" d="M205,58V68"/>
+          <text class="lbl" x="345" y="172" text-anchor="middle">prediction error scored here</text>
+          <path class="ar dim" d="M345,160V144"/>
+
+          <rect class="box bad" x="430" y="166" width="110" height="44" rx="8"/>
+          <text class="t2" x="485" y="185" text-anchor="middle">counterfactual:</text>
+          <text class="t2" x="485" y="200" text-anchor="middle">hold → R = −3.1</text>
+          <path class="ar dim" d="M400,130C415,150 420,175 428,186" marker-end="url(#arr)"/>
+        </svg>
+        <figcaption>An illustrative episode. The agent's prediction about its own action is scored separately from the final outcome, and the decision point can be forked to see what an alternative would have produced.</figcaption>
+      </figure>
+
+      <h2 id="scoring">Scoring that matches intent</h2>
+      <p>A score is a claim about what you care about. When the claim is wrong, optimizing it makes things worse. We keep three kinds of measurement apart and report each one on its own line.</p>
+      <p><strong>Completion</strong> asks whether the goal was reached. <strong>Constraint violations</strong> count the times the agent did something it was told not to do, whether or not it finished. <strong>Prediction error</strong> measures how far the agent's expectation of an action's effect was from what actually happened. An agent can complete a task while breaking three rules; another can follow every rule and never finish. Folding these into one number hides exactly the trade-off a decision-maker needs to see.</p>
+      <p>The separation matters most for world-model evaluation. If a model is asked to predict the next state before it acts, the accuracy of that prediction is a property of its understanding, and task success is a property of its policy. A model can stumble into success with a poor model of the world, or understand the world well and still choose badly. We score predictions against the realized transition at each step and keep that score out of the task reward entirely, so neither can quietly subsidize the other.</p>
+
+      <h2 id="controls">Controlled comparisons</h2>
+      <p>The point of comparing two models is to learn something about the models. That only works if everything else is held fixed: environment version, seeds, opponent policies, tool implementations, prompt scaffolding, budgets, and decoding settings. We run both arms on the same set of seeds, so each episode has a matched counterpart and the comparison is paired.</p>
+      <p>Sometimes a perfectly matched comparison is impossible. One model needs a different tool format, or a provider does not expose a setting. When that happens we don't pretend otherwise. Every report lists the differences between arms in a table at the top, before any results, so a reader can judge how much of the gap might belong to the setup rather than the model.</p>
+
+      <h2 id="trials">Repeated trials and how many you need</h2>
+      <p>Stateful environments are noisy. The same model on the same task can score very differently depending on the seed, on sampling, and on how the rest of the world happens to move. One run tells you almost nothing; ten runs tell you roughly where the mean is. We report means with 95% confidence intervals, and we decide how many trials to run before we look at results, not after.</p>
+      <p>The right number depends on two things: how variable the score is, and how small a difference you need to be able to detect. The calculator below uses the standard two-sample approximation for 80% power at a two-sided significance level of 0.05. If you are running a paired design on shared seeds, enter the standard deviation of the per-seed differences; it is usually much smaller, and the trial count falls accordingly.</p>
+
+      <figure class="calc" aria-labelledby="calcTitle">
+        <span class="eyebrow" id="calcTitle">Trials calculator</span>
+        <div class="fields">
+          <div><label for="cSd">Observed standard deviation of score</label><input id="cSd" type="number" min="0.01" step="0.1" value="4"></div>
+          <div><label for="cD">Smallest difference worth detecting</label><input id="cD" type="number" min="0.01" step="0.1" value="1.5"></div>
+          <div><label for="cDesign">Design</label><select id="cDesign"><option value="two">Independent arms</option><option value="paired">Paired on shared seeds</option></select></div>
+        </div>
+        <div class="out">
+          <div><div class="big" id="cN">–</div><div class="sub" id="cNLabel">trials per arm</div></div>
+          <div><div class="big" id="cTotal">–</div><div class="sub">episodes in total</div></div>
+        </div>
+        <p id="cNote"></p>
+      </figure>
+
+      <p>Two practical notes. First, the standard deviation should come from a pilot run in the same environment, not a guess; we usually spend a small fraction of the budget on a pilot for exactly this reason. Second, if you plan to compare many models or many tasks at once, the per-comparison threshold needs to tighten, and the trial count rises with it.</p>
+
+      <h2 id="validate">Validating the benchmark itself</h2>
+      <p>A benchmark can be wrong in ways that make every model look better than it is. Before we trust an environment, we try to break it.</p>
+      <ul>
+        <li><strong>Grader-exploit probes.</strong> We write adversarial policies whose only purpose is to score well without doing the task: emitting the success string, exploiting a lenient parser, triggering an early termination that counts as a win. If any of them score above chance, the grader gets fixed before a single real model is run.</li>
+        <li><strong>Trivial-policy baselines.</strong> A random agent, an agent that always takes the same action, and a simple scripted heuristic. If a frontier model barely beats "always wait," the environment is not measuring what we hoped, or the task is easier than it looks.</li>
+        <li><strong>Contamination and held-out procedures.</strong> Seeds, scenarios, and configuration files for the reporting set are generated after the environment is frozen and never published. Public examples come from a separate pool. When a scenario leaks, it is retired, and we keep a record of which results it touched.</li>
+      </ul>
+
+      <h2 id="attribution">Failure attribution</h2>
+      <p>When an episode goes wrong, the useful question is not just "did it fail" but "what failed." Was it the model, which saw the right information and chose poorly? The tool, which returned a malformed result or timed out? Or the environment, which had a bug, an ambiguous rule, or a transition that didn't match its own specification?</p>
+      <p>Each failed trajectory is tagged with one of these causes, and the tag is checked by replaying the episode. Tool and environment failures are logged and excluded from model scores, but they are reported, because a model that copes gracefully with a flaky tool is showing a skill worth knowing about. Every attribution is linked to the step where the failure first became visible, so a reader can check our call rather than take it on faith.</p>
+
+      <h2 id="deliverables">What a commissioned engagement delivers</h2>
+      <p>When a team commissions an evaluation, they get more than a ranking. A standard engagement includes:</p>
+      <ul class="deliv">
+        <li>A written environment specification, versioned, covering state, transitions, observations, actions, budgets, participants, and scoring.</li>
+        <li>The environment itself, packaged so your team can rerun any episode from its seed.</li>
+        <li>Full trajectories for every run, in a documented schema, with fork metadata where we branched.</li>
+        <li>A results report with separate completion, violation, and prediction scores, confidence intervals, and a table of every difference between compared arms.</li>
+        <li>A validation appendix: exploit probes attempted, baseline scores, and the held-out procedure used.</li>
+        <li>A failure analysis that attributes errors to model, tool, or environment, with links to the exact steps.</li>
+      </ul>
+      <p>We also hand over our open questions: the things we noticed but could not resolve within the budget. An honest list of what an evaluation does not tell you is part of what it does.</p>
+    </article>
+  </div>
+
+  <section class="cta">
+    <div class="wrap">
+      <span class="eyebrow">Work with us</span>
+      <h2>Put your model in a world that pushes back</h2>
+      <p class="lede">Tell us the decision you need evidence for, and we'll design the environment and the statistics to answer it.</p>
+      <a class="btn accent" href="index.html#commission">Commission an evaluation →</a>
+    </div>
+  </section>
+</main>
+
+<div id="site-footer"></div>
+<script src="common.js"></script>
+<script>
+(function(){
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  /* Table of contents (desktop sticky + mobile disclosure) */
+  const heads = [...document.querySelectorAll('#article h2[id]')];
+  const items = heads.map(h => `<li><a href="#${h.id}">${h.textContent}</a></li>`).join('');
+  $('tocList').innerHTML = items;
+  $('tocMobile').innerHTML = items;
+  const links = [...$('tocList').querySelectorAll('a')];
+  function markActive(){
+    let idx = 0;
+    heads.forEach((h, i) => { if (h.getBoundingClientRect().top < 140) idx = i; });
+    links.forEach((a, i) => a.classList.toggle('on', i === idx));
+  }
+  addEventListener('scroll', markActive, { passive: true });
+  markActive();
+
+  /* Trials calculator: n per arm = 2 (z_{1-a/2} + z_{1-b})^2 sd^2 / d^2; paired: (z+z)^2 sd_diff^2 / d^2 */
+  const Z_ALPHA = 1.959964, Z_BETA = 0.841621;
+  function calc(){
+    const s = parseFloat($('cSd').value), d = parseFloat($('cD').value);
+    const paired = $('cDesign').value === 'paired';
+    if (!(s > 0) || !(d > 0)){
+      $('cN').textContent = '–'; $('cTotal').textContent = '–';
+      $('cNote').textContent = 'Enter positive values for both fields.';
+      return;
+    }
+    const k = (Z_ALPHA + Z_BETA) ** 2 * (s / d) ** 2;
+    const n = Math.max(2, Math.ceil(paired ? k : 2 * k));
+    $('cN').textContent = n.toLocaleString();
+    $('cNLabel').textContent = paired ? 'seeds (each run on both arms)' : 'trials per arm';
+    $('cTotal').textContent = (2 * n).toLocaleString();
+    $('cNote').textContent = paired
+      ? `With a per-seed difference sd of ${s} you need ${n} shared seeds to detect a true gap of ${d} four times out of five. Here sd is the spread of the differences, not of either arm.`
+      : `With sd ${s}, each arm needs ${n} independent episodes to detect a true gap of ${d} with 80% power at α = 0.05. Halving the detectable difference roughly quadruples the count.`;
+  }
+  ['cSd', 'cD', 'cDesign'].forEach(id => $(id).addEventListener('input', calc));
+  calc();
+})();
+</script>
+</body>
+</html>
