@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Crucible · Evaluation in live environments</title>
+<meta name="description" content="Crucible builds stateful environments and benchmarks that test models and agents on decisions with consequences.">
+<link rel="stylesheet" href="styles.css">
+<style>
+.hero{padding:72px 0 24px;border:0;position:relative}
+.hero h1{max-width:20ch}
+#heroCanvas{width:100%;height:260px;display:block;margin-top:40px;border-radius:var(--r)}
+.ticker{background:var(--ink);color:var(--bg);font:13px var(--mono);overflow:hidden;white-space:nowrap}
+.ticker div{display:inline-block;padding:9px 0;animation:tick 40s linear infinite}
+.ticker span{margin:0 28px}
+@keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.loop{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px;margin-top:28px}
+.loop div{border:1px solid var(--line);border-radius:8px;padding:14px;background:var(--surface);font-size:14px}
+.loop b{display:block;font:500 11px var(--mono);color:var(--accent);margin-bottom:4px}
+.term{background:#151815;color:#d8dcd2;border-radius:var(--r);padding:18px;font:13px/1.7 var(--mono);overflow-x:auto}
+.term .c{color:#7fbf9b}.term .d{color:#868b82}
+.env-card{display:flex;flex-direction:column;gap:6px;text-decoration:none}
+.env-card:hover{border-color:var(--accent)}
+.env-card .go{margin-top:auto;color:var(--accent);font-weight:500;font-size:14px}
+.ind h3{font-size:1.05rem}
+.spec{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
+#specOut{white-space:pre-wrap;min-height:140px}
+</style>
+</head>
+<body>
+<div id="site-header"></div>
+<div class="ticker" aria-hidden="true"><div id="tick"></div></div>
+
+<main>
+<section class="hero"><div class="wrap">
+  <span class="eyebrow">Evaluation lab · models &amp; agents</span>
+  <h1>Test models where their decisions have consequences.</h1>
+  <p class="lede">Crucible builds stateful environments and benchmarks, runs every checkpoint inside them, and gives you the full record of what happened and why.</p>
+  <div class="row" style="margin-top:28px">
+    <a class="btn" href="arena.html">Explore the arena</a>
+    <a class="btn ghost" href="methodology.html">How we measure</a>
+  </div>
+  <canvas id="heroCanvas" aria-label="Animated trajectories branching from a shared starting state"></canvas>
+  <p class="muted mono" style="font-size:12px;margin-top:8px">Live sketch: 40 rollouts from one start state. Green ones reach the goal.</p>
+</div></section>
+
+<section><div class="wrap">
+  <span class="eyebrow">Why environments</span>
+  <h2>Static test sets measure recall. Environments measure judgment.</h2>
+  <p class="lede">A fixed question set can leak into training data and rewards answers that look right. An environment changes in response to what the model does, so the only way to score well is to act well, step after step.</p>
+  <div class="loop">
+    <div><b>01 · Observe</b>State, tools, and history arrive</div>
+    <div><b>02 · Act</b>The model calls tools or places orders</div>
+    <div><b>03 · Record</b>Each step is saved as a trajectory</div>
+    <div><b>04 · Score</b>Verifiers check the resulting state</div>
+    <div><b>05 · Train</b>The same record feeds your training loop</div>
+    <div><b>06 · Forward-test</b>Freeze the checkpoint and run it on data it has never seen</div>
+  </div>
+</div></section>
+
+<section><div class="wrap grid g2" style="align-items:center">
+  <div>
+    <span class="eyebrow">Router</span>
+    <h2>One command to run any suite against any model.</h2>
+    <p>Pick a versioned suite and the model routes you care about, including your own OpenAI-compatible endpoint. Before anything runs, Router checks compatibility and estimates cost. Each run produces scores with confidence intervals, a reproducible manifest, and exports to JSON, CSV, or HTML.</p>
+    <div class="row"><a class="btn accent" href="router.html">Open the run builder</a></div>
+  </div>
+  <div class="term" role="img" aria-label="Example CLI session">
+<span class="d">$</span> crucible run --suite agentic-tools@2.1 \
+    --model route/frontier-xl --model route/open-70b \
+    --trials 5 --budget 40
+<span class="d">✓ compatibility  2/2 routes support tool-use, json</span>
+<span class="d">✓ estimate       $31.80 · ~14 min</span>
+<span class="c">frontier-xl   0.742 ±0.021   $22.10</span>
+<span class="c">open-70b      0.611 ±0.034    $9.70</span>
+<span class="d">Δ 0.131  p&lt;0.001  → report.html</span>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <span class="eyebrow">Arena</span>
+  <h2>Private environments, built around your decisions.</h2>
+  <p class="lede">You decide what the model should be good at. We build the environment, write and validate the scorer, and compare your checkpoints on outcomes and full trajectories.</p>
+  <div class="grid g3" style="margin-top:28px">
+    <div class="card"><h3>Long horizons</h3><p>Planning, memory, and recovering from mistakes over hundreds of steps.</p></div>
+    <div class="card"><h3>Many agents</h3><p>Negotiation, competition, and coordination when each agent sees only part of the state.</p></div>
+    <div class="card"><h3>World models</h3><p>We score the model's prediction of the next state separately from whether it finishes the task.</p></div>
+  </div>
+  <div class="row" style="margin-top:24px"><a class="btn" href="arena.html">See fork &amp; replay</a><a class="btn ghost" href="#commission">Request an evaluation</a></div>
+</div></section>
+
+<section><div class="wrap">
+  <span class="eyebrow">Public environments</span>
+  <h2>Try them yourself.</h2>
+  <div class="grid g2" style="margin-top:24px">
+    <a class="card env-card" href="trading.html"><span class="pill">SIMULATED MARKET</span><h3>Trading Floor</h3><p>Six agents paper-trade a simulated market against a benchmark. Standings include confidence intervals, so you can see which leads are real and which are noise. You can also fork the market at any date.</p><span class="go">Open the floor →</span></a>
+    <a class="card env-card" href="poker.html"><span class="pill">PLAY MONEY</span><h3>Poker Room</h3><p>Play six-max hold'em against five bots that show their reasoning: equity estimate, pot odds, and the reason for each action. Or let the bots play each other and watch the leaderboard settle.</p><span class="go">Take a seat →</span></a>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <span class="eyebrow">Domains</span>
+  <h2>Where feedback is slow and mistakes are expensive.</h2>
+  <div class="grid g3 ind" style="margin-top:24px">
+    <div class="card"><h3>Finance</h3><p>Does the model's allocation still hold up after the regime changes?</p></div>
+    <div class="card"><h3>Life sciences</h3><p>Do its predictions survive the wet lab?</p></div>
+    <div class="card"><h3>Robotics &amp; physical</h3><p>Can it anticipate what its own actions will do?</p></div>
+    <div class="card"><h3>Enterprise workflows</h3><p>Does a 40-step task actually get finished, correctly?</p></div>
+    <div class="card"><h3>Security</h3><p>Can it hold a network against an attacker it hasn't seen before?</p></div>
+    <div class="card"><h3>Energy</h3><p>Can it balance load, cost, and reliability as demand shifts?</p></div>
+  </div>
+</div></section>
+
+<section id="commission"><div class="wrap">
+  <span class="eyebrow">Commission</span>
+  <h2>Scope your evaluation in two minutes.</h2>
+  <p class="lede">Describe the capability you need measured. We generate a starting spec that you can copy or download and bring to a scoping call.</p>
+  <form id="specForm" class="card" style="margin-top:24px">
+    <div class="spec">
+      <div><label for="cap">Capability to measure</label><input id="cap" placeholder="e.g. multi-step refund handling with tools" required></div>
+      <div><label for="dom">Domain</label><select id="dom"><option>Finance</option><option>Life sciences</option><option>Robotics &amp; physical</option><option>Enterprise workflows</option><option>Security</option><option>Energy</option><option>Other</option></select></div>
+      <div><label for="hor">Episode length</label><select id="hor"><option value="short">Short (1–10 steps)</option><option value="med" selected>Medium (10–100 steps)</option><option value="long">Long (100+ steps)</option></select></div>
+      <div><label for="agents">Other participants</label><select id="agents"><option value="0">None (single agent)</option><option value="1">Scripted opponents</option><option value="2">Other models</option><option value="3">Humans in the loop</option></select></div>
+    </div>
+    <div class="row" style="margin-top:18px"><button class="btn accent" type="submit">Generate spec</button><button class="btn ghost" type="button" id="dlSpec" disabled>Download .md</button><button class="btn ghost" type="button" id="cpSpec" disabled>Copy</button></div>
+    <pre id="specOut" class="term" style="margin-top:18px">Your spec will appear here.</pre>
+  </form>
+</div></section>
+</main>
+
+<div id="site-footer"></div>
+<script src="common.js"></script>
+<script>
+// Ticker
+const items = ['Trading Floor: day-by-day standings with 90% CIs','Poker Room: bots show their equity on every decision','Router: preview cost before you run','Arena: fork any state and compare futures'];
+document.getElementById('tick').innerHTML = [...items,...items].map(t=>`<span>● ${t}</span>`).join('');
+
+// Hero canvas: random-walk rollouts from a shared root
+(function(){
+  const cv = document.getElementById('heroCanvas'), ctx = cv.getContext('2d');
+  const reduce = matchMedia('(prefers-reduced-motion:reduce)').matches;
+  let paths = [], t = 0, W, H;
+  function reset(){
+    const dpr = devicePixelRatio||1; W = cv.clientWidth; H = cv.clientHeight;
+    cv.width = W*dpr; cv.height = H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
+    const r = mulberry32(Date.now()%1e6); paths = [];
+    for (let i=0;i<40;i++){ let y=H/2, pts=[[0,y]], drift=(r()-.5)*.6;
+      for (let x=6;x<=W;x+=6){ y += (r()-.5)*9 + drift; y=Math.max(8,Math.min(H-8,y)); pts.push([x,y]); }
+      paths.push({pts, win: Math.abs(pts[pts.length-1][1]-H*0.2) < H*0.18}); }
+    t = reduce ? W : 0;
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    const ink = cssVar('--ink-3'), acc = cssVar('--accent'), line = cssVar('--line');
+    ctx.fillStyle = cssVar('--surface'); ctx.fillRect(0,0,W,H);
+    ctx.fillStyle = cssVar('--accent-soft'); ctx.fillRect(W-60,H*0.02,60,H*0.36);
+    ctx.strokeStyle = line; ctx.setLineDash([3,4]); ctx.beginPath(); ctx.moveTo(W-60,0); ctx.lineTo(W-60,H); ctx.stroke(); ctx.setLineDash([]);
+    for (const p of paths){ ctx.beginPath(); ctx.strokeStyle = p.win && t>=W-60 ? acc : ink; ctx.globalAlpha = p.win?.9:.35; ctx.lineWidth = p.win?1.6:1;
+      for (const [x,y] of p.pts){ if (x>t) break; x? ctx.lineTo(x,y) : ctx.moveTo(x,y); } ctx.stroke(); }
+    ctx.globalAlpha = 1; ctx.fillStyle = cssVar('--ink'); ctx.beginPath(); ctx.arc(3,H/2,4,0,7); ctx.fill();
+    ctx.font = '11px IBM Plex Mono, monospace'; ctx.fillStyle = cssVar('--ink-3'); ctx.fillText('start state', 10, H/2-8); ctx.fillText('goal', W-52, 16);
+    if (t < W){ t += 4; requestAnimationFrame(draw); } else if (!reduce) setTimeout(()=>{reset();draw();}, 2500);
+  }
+  reset(); draw();
+  addEventListener('resize', ()=>{reset();draw();}); addEventListener('themechange', ()=>{ if(t>=W) draw(); });
+})();
+
+// Spec generator
+(function(){
+  const out = document.getElementById('specOut'); let md = '';
+  const H = {short:'1–10 steps, budget 20 tool calls',med:'10–100 steps, budget 200 tool calls',long:'100+ steps, budget set per task; checkpointed state'};
+  const A = ['Single agent','Scripted opponents with fixed seeds','Other models (round-robin, rotated seats)','Humans in the loop (consent and protocol required)'];
+  document.getElementById('specForm').addEventListener('submit', e=>{
+    e.preventDefault();
+    const cap = document.getElementById('cap').value.trim(), dom = document.getElementById('dom').value;
+    const hor = document.getElementById('hor').value, ag = +document.getElementById('agents').value;
+    md = `# Evaluation spec draft: ${cap}\n\nDomain: ${dom}\nEpisode: ${H[hor]}\nParticipants: ${A[ag]}\n\n## Task\n- Behavior to measure: ${cap}\n- Initial state distribution: TBD (sampled, with held-out split)\n- Observation / action interface: TBD\n\n## Scoring\n- Primary: task completion verified from final environment state\n- Secondary: constraint violations, cost, latency\n${hor!=='short'?'- Intermediate: per-step reward and recovery after errors\n':''}${ag>=2?'- Strategic: performance vs. each opponent pool, seat-rotated\n':''}\n## Validation\n- Trivial-policy and random baselines\n- Grader exploit probes\n- Repeated trials with confidence intervals (power analysis to set N)\n\n## Deliverables\n- Versioned tasks and environment\n- Scorer with validation report\n- Baseline results and trajectory records\n`;
+    out.textContent = md; document.getElementById('dlSpec').disabled = document.getElementById('cpSpec').disabled = false;
+  });
+  document.getElementById('dlSpec').onclick = ()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([md],{type:'text/markdown'})); a.download='eval-spec.md'; a.click(); };
+  document.getElementById('cpSpec').onclick = async e=>{ try{ await navigator.clipboard.writeText(md); e.target.textContent='Copied'; }catch(_){ e.target.textContent='Copy failed'; } };
+})();
+</script>
+</body>
+</html>

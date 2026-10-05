@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Router · Crucible</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+.hero-grid{display:grid;gap:32px;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));align-items:start}
+.code-card{padding:0;overflow:hidden}
+.code-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--surface-2);flex-wrap:wrap}
+pre.code{margin:0;padding:16px;font:13px/1.65 var(--mono);color:var(--ink);overflow-x:auto;white-space:pre;background:var(--surface)}
+pre.code .c{color:var(--ink-3)}
+.steps{display:grid;gap:10px;margin-top:20px;font-size:15px}
+.steps div{display:flex;gap:10px}.steps b{font:500 12px var(--mono);color:var(--accent);min-width:22px;padding-top:3px}
+.panel-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.panel-h h3{margin:0}
+.pick{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr))}
+.opt{display:block;text-align:left;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:11px 12px;cursor:pointer;color:var(--ink);font:inherit;position:relative}
+.opt:hover{border-color:var(--ink-3)}
+.opt.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:color-mix(in srgb,var(--accent-soft) 45%,var(--surface))}
+.opt .t{font:500 13.5px var(--mono);display:block;margin-bottom:4px;overflow-wrap:anywhere}
+.opt .m{font-size:12.5px;color:var(--ink-3);display:block}
+.opt .tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+.tag{font:500 10.5px/1 var(--mono);padding:4px 6px;border-radius:5px;border:1px solid var(--line);color:var(--ink-2)}
+.opt.bad{opacity:.75}.opt.bad .t::after{content:" · incompatible";color:var(--down);font-size:11px}
+.fields{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))}
+.checks{display:flex;gap:14px;flex-wrap:wrap;font-size:13px}
+.checks label{display:flex;gap:6px;align-items:center;margin:0}
+.checks input{width:auto}
+.note{font-size:13px;color:var(--ink-3);margin:8px 0 0}
+.msg{margin-top:12px;padding:10px 12px;border-radius:8px;font-size:13.5px;border:1px solid var(--line);background:var(--surface-2);overflow-wrap:anywhere}
+.msg.ok{border-color:color-mix(in srgb,var(--up) 50%,var(--line))}
+.msg.err,.msg.warn{border-color:color-mix(in srgb,var(--down) 55%,var(--line));background:color-mix(in srgb,var(--down) 8%,var(--surface))}
+.msg.warn{border-color:color-mix(in srgb,var(--warn) 60%,var(--line));background:color-mix(in srgb,var(--warn) 9%,var(--surface))}
+.yes{color:var(--up);font-family:var(--mono)}.no{color:var(--down);font-family:var(--mono)}
+td.why{font-size:12.5px;color:var(--ink-2);min-width:180px}
+.share{height:6px;background:var(--surface-2);border-radius:4px;overflow:hidden;min-width:60px}
+.share i{display:block;height:100%;background:var(--accent)}
+.totals{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));margin:16px 0}
+.stat{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--surface)}
+.stat span{display:block;font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3)}
+.stat b{font:500 1.3rem var(--mono)}
+.prog{display:grid;gap:10px;margin:16px 0}
+.prog .r{display:grid;grid-template-columns:minmax(0,180px) 1fr 70px;gap:10px;align-items:center;font:12.5px var(--mono)}
+.prog .r span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar{height:8px;background:var(--surface-2);border-radius:5px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .1s linear}
+.log{height:210px;overflow:auto;background:var(--surface-2);border-radius:8px;padding:10px 12px;font:12px/1.6 var(--mono);color:var(--ink-2);white-space:pre-wrap;overflow-wrap:anywhere}
+.chart svg{width:100%;height:auto;display:block}
+.manifest{max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.pmx td,.pmx th{text-align:center;font-family:var(--mono);font-size:12px;padding:7px 8px}
+.pmx th.rl{text-align:left}
+.sig-up{background:color-mix(in srgb,var(--up) 16%,transparent)}.sig-dn{background:color-mix(in srgb,var(--down) 14%,transparent)}
+.verdict{font:500 1.15rem var(--serif);margin:12px 0 6px}
+.hist-row td{vertical-align:middle}
+.empty{padding:28px;text-align:center;color:var(--ink-3);border:1px dashed var(--line);border-radius:var(--r)}
+.hidden{display:none!important}
+@media(max-width:600px){.prog .r{grid-template-columns:110px 1fr 54px}.card{padding:18px}}
+</style>
+</head>
+<body>
+<div id="site-header"></div>
+
+<main>
+  <div class="page-h"><div class="wrap">
+    <div class="hero-grid">
+      <div>
+        <span class="eyebrow">Crucible Router</span>
+        <h1>One suite, every model, a result you can rerun.</h1>
+        <p class="lede">Router runs versioned benchmark suites against many model routes from your terminal or our API. It checks compatibility and prices the run before a single token is spent, and every result ships with a manifest that pins exactly what was measured.</p>
+        <div class="steps">
+          <div><b>01</b><span><span class="mono">crucible plan</span> checks capabilities, context limits and cost against your budget cap.</span></div>
+          <div><b>02</b><span><span class="mono">crucible run</span> fans the suite out across routes with repeated trials and fixed seeds.</span></div>
+          <div><b>03</b><span>Scores come back with 95% intervals, paired significance tests and exports in JSON, CSV or HTML.</span></div>
+        </div>
+        <div class="row" style="margin-top:24px"><a class="btn accent" href="#builder">Build a run</a><a class="btn ghost" href="methodology.html">How we score</a></div>
+      </div>
+      <div class="card code-card">
+        <div class="code-head">
+          <div class="seg" id="snipTabs" role="tablist"><button class="on" data-k="cli">CLI</button><button data-k="py">Python</button><button data-k="curl">curl</button></div>
+          <button class="btn ghost sm" id="snipCopy">Copy</button>
+        </div>
+        <pre class="code" id="snip"></pre>
+        <p class="note" style="padding:0 16px 14px;margin:0">This snippet follows the run builder below as you change it.</p>
+      </div>
+    </div>
+  </div></div>
+
+  <section id="builder">
+    <div class="wrap">
+      <span class="eyebrow">Run builder</span>
+      <h2>Plan the run before you pay for it.</h2>
+      <p class="lede">Pick a suite and the routes to compare. Compatibility and cost update as you go. The demo below simulates the run with deterministic, seeded scores.</p>
+
+      <div class="card" style="margin-top:28px">
+        <div class="panel-h"><h3>1 · Suite</h3><span class="muted mono" style="font-size:12px" id="suiteSum"></span></div>
+        <div class="pick" id="suiteList"></div>
+      </div>
+
+      <div class="card" style="margin-top:20px">
+        <div class="panel-h"><h3>2 · Model routes</h3><span class="muted mono" style="font-size:12px" id="routeSum"></span></div>
+        <div class="pick" id="routeList"></div>
+        <details style="margin-top:18px" id="customBox">
+          <summary style="cursor:pointer;font-weight:500">Custom OpenAI-compatible endpoint</summary>
+          <div style="margin-top:14px">
+            <div class="fields">
+              <div style="grid-column:1/-1"><label for="cBase">Base URL</label><input id="cBase" placeholder="https://your-host.example/v1" autocomplete="off" spellcheck="false"></div>
+              <div><label for="cModel">Model name</label><input id="cModel" placeholder="my-finetune-7b" autocomplete="off" spellcheck="false"></div>
+              <div><label for="cKey">API key</label><input id="cKey" type="password" placeholder="kept in memory only" autocomplete="off" spellcheck="false"></div>
+              <div><label for="cCtx">Context window</label><select id="cCtx"><option value="8000">8k</option><option value="32000">32k</option><option value="64000">64k</option><option value="128000" selected>128k</option><option value="200000">200k</option><option value="1000000">1M</option></select></div>
+              <div><label for="cPin">$ / M input</label><input id="cPin" type="number" min="0" step="0.01" value="0"></div>
+              <div><label for="cPout">$ / M output</label><input id="cPout" type="number" min="0" step="0.01" value="0"></div>
+            </div>
+            <div class="checks" style="margin-top:12px" id="cCaps">
+              <label><input type="checkbox" value="tool-use"> tool-use</label>
+              <label><input type="checkbox" value="vision"> vision</label>
+              <label><input type="checkbox" value="json-mode" checked> json-mode</label>
+            </div>
+            <div class="row" style="margin-top:14px">
+              <label class="checks" style="margin:0"><input type="checkbox" id="cOn" style="width:auto"> Include in run</label>
+              <button class="btn ghost sm" id="cTest">Test connection</button>
+            </div>
+            <p class="note">Your key stays in this tab's memory. It isn't saved, exported or written to history, and the test request goes straight from your browser to the URL above. Scores for custom routes are simulated in this demo. The CLI runs them for real.</p>
+            <div id="cResult"></div>
+          </div>
+        </details>
+      </div>
+
+      <div class="card" style="margin-top:20px">
+        <div class="panel-h"><h3>3 · Compatibility</h3><span class="muted" style="font-size:13px">Suite requirements against route capabilities</span></div>
+        <div class="tablewrap" id="matrix"></div>
+      </div>
+
+      <div class="card" style="margin-top:20px">
+        <div class="panel-h"><h3>4 · Cost &amp; time</h3></div>
+        <div class="fields">
+          <div><label for="trials">Trials per task</label><input id="trials" type="number" min="1" max="20" value="5"></div>
+          <div><label for="seed">Seed</label><input id="seed" type="number" value="2026"></div>
+          <div><label for="conc">Concurrency per route</label><input id="conc" type="number" min="1" max="64" value="8"></div>
+          <div><label for="budget">Budget cap (USD)</label><input id="budget" type="number" min="0" step="10" value="250"></div>
+        </div>
+        <div class="totals" id="totals"></div>
+        <div class="tablewrap" id="estTable"></div>
+        <div id="budgetMsg"></div>
+        <div class="row" style="margin-top:18px">
+          <button class="btn accent" id="runBtn">Run</button>
+          <button class="btn ghost hidden" id="cancelBtn">Cancel</button>
+          <span class="muted" style="font-size:13px" id="runHint"></span>
+        </div>
+        <div id="runArea" class="hidden">
+          <div class="prog" id="prog"></div>
+          <div class="log" id="log" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="results">
+    <div class="wrap">
+      <span class="eyebrow">Results</span>
+      <h2>Leaderboard</h2>
+      <div id="resEmpty" class="empty">Start a run, or reopen one from history, to see results here.</div>
+      <div id="resBody" class="hidden">
+        <p id="resMeta" class="muted mono" style="font-size:12.5px"></p>
+        <div class="card" style="padding:0"><div class="tablewrap" id="board"></div></div>
+        <div class="card chart" style="margin-top:20px">
+          <div class="panel-h"><h3>Mean score with 95% CI</h3><span class="muted" style="font-size:13px">Intervals cluster by task, across trials</span></div>
+          <div id="chart"></div>
+        </div>
+        <div class="grid g2" style="margin-top:20px">
+          <div class="card">
+            <h3>Is A better than B?</h3>
+            <p style="font-size:14px">A paired test on per-task differences. Both routes ran the same tasks, so shared difficulty cancels out. That makes the test far more sensitive than checking whether two intervals overlap.</p>
+            <div class="fields"><div><label for="pA">Route A</label><select id="pA"></select></div><div><label for="pB">Route B</label><select id="pB"></select></div></div>
+            <div id="pairOut"></div>
+          </div>
+          <div class="card">
+            <h3>All pairs</h3>
+            <p style="font-size:14px">Row minus column, in points. Shaded cells stay significant after Holm correction across all pairs (α = 0.05).</p>
+            <div class="tablewrap" id="pairMx"></div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:20px">
+          <div class="panel-h"><h3>Run manifest</h3><div class="row" style="gap:8px"><button class="btn ghost sm" id="manCopy">Copy manifest</button><button class="btn ghost sm" id="cmdCopy">Copy rerun command</button></div></div>
+          <div class="manifest"><pre class="code" id="manifest"></pre></div>
+          <div class="row" style="margin-top:18px">
+            <span class="muted" style="font-size:13px">Export</span>
+            <button class="btn sm" data-exp="json">JSON</button>
+            <button class="btn sm" data-exp="csv">CSV</button>
+            <button class="btn sm" data-exp="html">HTML report</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="history">
+    <div class="wrap">
+      <span class="eyebrow">History</span>
+      <h2>Past runs</h2>
+      <p class="lede">Runs are saved in this browser only. Reopen one, or diff two of them to see what moved.</p>
+      <div class="card" style="padding:0;margin-top:20px"><div class="tablewrap" id="histTable"></div></div>
+      <div class="card" style="margin-top:20px">
+        <h3>Compare two runs</h3>
+        <div class="fields" style="margin-top:12px"><div><label for="hA">Baseline</label><select id="hA"></select></div><div><label for="hB">Candidate</label><select id="hB"></select></div></div>
+        <div id="diffOut" style="margin-top:14px"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="site-footer"></div>
+<script src="common.js"></script>
+<script>
+(function(){
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money = v => v === 0 ? '$0' : v < 0.01 ? '$' + v.toFixed(4) : v < 1000 ? '$' + v.toFixed(2) : '$' + Math.round(v).toLocaleString();
+const tok = v => v >= 1e9 ? (v/1e9).toFixed(2)+'B' : v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'k' : String(Math.round(v));
+const ctxStr = c => c >= 1e6 ? (c/1e6)+'M' : Math.round(c/1000)+'k';
+const dur = s => s < 90 ? Math.round(s)+'s' : s < 5400 ? Math.round(s/60)+'m' : (s/3600).toFixed(1)+'h';
+const pct = v => (v*100).toFixed(1);
+const hash = str => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+const RNG = key => window.mulberry32(hash(key));
+const SCORER = 'crucible-scorer@4.2.1', ROUTER = 'crucible-router@1.8.0', API = 'https://api.crucible.example/v1';
+
+// ---------- catalogs ----------
+const SUITES = [
+  {id:'agentic-tools@2.1', tasks:240, tin:6200, tout:900, caps:['tool-use','json-mode'], ctx:32000, diff:0.3, domain:'agent', d:'Multi-step tool calls against mocked APIs'},
+  {id:'long-horizon-planning@1.4', tasks:80, tin:38000, tout:2400, caps:['tool-use'], ctx:128000, diff:1.1, domain:'agent', d:'Plans spanning 40+ dependent steps'},
+  {id:'sealed-forecasts@0.9', tasks:150, tin:3200, tout:600, caps:['json-mode'], ctx:16000, diff:0.9, domain:'reason', d:'Questions that resolve after the model cutoff'},
+  {id:'code-repair@3.0', tasks:300, tin:14000, tout:1800, caps:['tool-use'], ctx:64000, diff:0.6, domain:'code', d:'Failing repos, graded by hidden tests'},
+  {id:'multiagent-negotiation@1.2', tasks:120, tin:9000, tout:1500, caps:['tool-use','json-mode'], ctx:32000, diff:0.5, domain:'agent', d:'Bargaining against scripted counterparts'},
+  {id:'tabular-reasoning@2.0', tasks:200, tin:11000, tout:500, caps:['json-mode'], ctx:32000, diff:0.2, domain:'reason', d:'Joins, filters and aggregates over messy tables'},
+  {id:'chart-qa@1.1', tasks:180, tin:2500, tout:300, caps:['vision'], ctx:16000, diff:0.0, domain:'vision', d:'Read values and trends off rendered charts'},
+  {id:'doc-grounding@2.3', tasks:100, tin:92000, tout:700, caps:[], ctx:128000, diff:0.4, domain:'reason', d:'Answer only from a long source document'},
+  {id:'refusal-calibration@1.0', tasks:400, tin:900, tout:350, caps:[], ctx:8000, diff:-0.4, domain:'safety', d:'Refuse the harmful, help with the borderline'},
+  {id:'web-nav@0.7', tasks:160, tin:21000, tout:800, caps:['tool-use','vision'], ctx:64000, diff:1.0, domain:'agent', d:'Browse a sandboxed web to finish chores'}
+];
+const ROUTES = [
+  {id:'northwind/atlas-xl', caps:['tool-use','vision','json-mode'], ctx:200000, pin:3, pout:15, lat:1.8, str:1.2, outMult:1, aff:{agent:.2}},
+  {id:'northwind/atlas-mini', caps:['tool-use','json-mode'], ctx:128000, pin:0.25, pout:1.25, lat:0.6, str:0.15, outMult:1, aff:{}},
+  {id:'helix/h3-pro', caps:['tool-use','vision','json-mode'], ctx:1000000, pin:2.5, pout:10, lat:2.2, str:1.0, outMult:1.2, aff:{vision:.4,reason:.2}},
+  {id:'helix/h3-flash', caps:['tool-use','vision','json-mode'], ctx:1000000, pin:0.15, pout:0.6, lat:0.5, str:0.05, outMult:1, aff:{vision:.2}},
+  {id:'quill/q-reason', caps:['tool-use','json-mode'], ctx:200000, pin:10, pout:40, lat:9, str:1.5, outMult:3.2, aff:{reason:.4,code:.3}},
+  {id:'basalt/b2-code', caps:['tool-use','json-mode'], ctx:128000, pin:1, pout:4, lat:1.2, str:0.45, outMult:1.1, aff:{code:.7}},
+  {id:'meridian/m-70b-instruct', caps:['tool-use','json-mode'], ctx:128000, pin:0.6, pout:0.8, lat:1.1, str:0.0, outMult:1, aff:{safety:.2}},
+  {id:'meridian/m-8b', caps:['json-mode'], ctx:32000, pin:0.05, pout:0.08, lat:0.3, str:-1.0, outMult:1, aff:{}},
+  {id:'tern/tern-vl', caps:['vision','json-mode'], ctx:64000, pin:0.4, pout:1.6, lat:0.9, str:-0.2, outMult:1, aff:{vision:.6}},
+  {id:'selfhost/local-13b', caps:['json-mode'], ctx:8000, pin:0, pout:0, lat:2.5, str:-1.3, outMult:1, aff:{}}
+];
+
+// ---------- state ----------
+const S = {
+  suite:'agentic-tools@2.1',
+  routes:new Set(['northwind/atlas-xl','helix/h3-pro','basalt/b2-code','meridian/m-70b-instruct']),
+  trials:5, seed:2026, conc:8, budget:250,
+  custom:{on:false, base:'', model:'', key:'', ctx:128000, pin:0, pout:0, caps:['json-mode']},
+  run:null, running:false, snip:'cli'
+};
+const suite = () => SUITES.find(s => s.id === S.suite);
+function customRoute(){
+  const c = S.custom;
+  if (!c.on || !c.model.trim()) return null;
+  return {id:'custom/' + c.model.trim(), caps:c.caps.slice(), ctx:c.ctx, pin:c.pin, pout:c.pout, lat:1.5, str:0, outMult:1, aff:{}, custom:true, base:c.base.trim()};
+}
+const chosen = () => { const r = ROUTES.filter(r => S.routes.has(r.id)); const c = customRoute(); if (c) r.push(c); return r; };
+
+function compat(su, r){
+  const why = [];
+  su.caps.forEach(c => { if (!r.caps.includes(c)) why.push('no ' + c); });
+  if (r.ctx < su.ctx) why.push('context ' + ctxStr(r.ctx) + ' < ' + ctxStr(su.ctx) + ' required');
+  return why;
+}
+function estimate(su, r){
+  const calls = su.tasks * S.trials;
+  const tin = calls * su.tin, tout = calls * su.tout * r.outMult;
+  const cost = (tin * r.pin + tout * r.pout) / 1e6;
+  const perCall = r.lat * (0.6 + su.tout * r.outMult / 1500);
+  return {calls, tin, tout, cost, time: calls * perCall / Math.max(1, S.conc)};
+}
+
+// ---------- render: builder ----------
+function renderSuites(){
+  $('#suiteList').innerHTML = SUITES.map(s => `<button class="opt ${s.id===S.suite?'on':''}" data-suite="${s.id}" aria-pressed="${s.id===S.suite}">
+    <span class="t">${s.id}</span><span class="m">${s.d}</span>
+    <span class="m">${s.tasks} tasks · ~${tok(s.tin)} in / ${tok(s.tout)} out per task</span>
+    <span class="tags">${s.caps.map(c=>`<span class="tag">${c}</span>`).join('')}<span class="tag">${ctxStr(s.ctx)} ctx</span></span></button>`).join('');
+  const s = suite();
+  $('#suiteSum').textContent = `${s.tasks} tasks · requires ${s.caps.concat(ctxStr(s.ctx)+' ctx').join(', ')}`;
+}
+function renderRoutes(){
+  const su = suite();
+  $('#routeList').innerHTML = ROUTES.map(r => { const on = S.routes.has(r.id), bad = compat(su, r).length;
+    return `<button class="opt ${on?'on':''} ${bad?'bad':''}" data-route="${r.id}" aria-pressed="${on}">
+    <span class="t">${r.id}</span><span class="m">${ctxStr(r.ctx)} ctx · $${r.pin}/$${r.pout} per M · ~${r.lat}s</span>
+    <span class="tags">${r.caps.map(c=>`<span class="tag">${c}</span>`).join('')}</span></button>`; }).join('');
+  const n = chosen().length;
+  $('#routeSum').textContent = `${n} selected`;
+}
+function renderMatrix(){
+  const su = suite(), rs = chosen();
+  if (!rs.length) { $('#matrix').innerHTML = '<div class="empty">Select at least one route.</div>'; return; }
+  const reqs = su.caps.concat(['ctx ≥ ' + ctxStr(su.ctx)]);
+  $('#matrix').innerHTML = `<table><thead><tr><th>Route</th>${reqs.map(q=>`<th>${q}</th>`).join('')}<th>Status</th></tr></thead><tbody>${rs.map(r => {
+    const why = compat(su, r);
+    const cells = su.caps.map(c => r.caps.includes(c) ? '<td class="yes">✓</td>' : '<td class="no">✗</td>').join('')
+      + (r.ctx >= su.ctx ? `<td class="yes">✓ ${ctxStr(r.ctx)}</td>` : `<td class="no">✗ ${ctxStr(r.ctx)}</td>`);
+    return `<tr><td class="mono" style="font-size:13px">${esc(r.id)}</td>${cells}<td class="why">${why.length ? '<span class="down">Skipped:</span> ' + esc(why.join('; ')) : '<span class="up">Runs</span>'}</td></tr>`;
+  }).join('')}</tbody></table>`;
+}
+function renderEstimate(){
+  const su = suite(), rs = chosen().filter(r => !compat(su, r).length);
+  const ests = rs.map(r => ({r, e:estimate(su, r)}));
+  const total = ests.reduce((a, x) => a + x.e.cost, 0);
+  const maxT = ests.reduce((a, x) => Math.max(a, x.e.time), 0);
+  const calls = ests.reduce((a, x) => a + x.e.calls, 0);
+  $('#totals').innerHTML = [['Routes that run', rs.length + ' / ' + chosen().length], ['Model calls', calls.toLocaleString()], ['Est. cost', money(total)], ['Est. wall time', maxT ? dur(maxT) : '—']]
+    .map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join('');
+  $('#estTable').innerHTML = ests.length ? `<table><thead><tr><th>Route</th><th class="num">Calls</th><th class="num">Tokens in</th><th class="num">Tokens out</th><th class="num">Cost</th><th class="num">Time</th><th>Share</th></tr></thead><tbody>${ests.map(({r, e}) =>
+    `<tr><td class="mono" style="font-size:13px">${esc(r.id)}</td><td class="num">${e.calls.toLocaleString()}</td><td class="num">${tok(e.tin)}</td><td class="num">${tok(e.tout)}</td><td class="num">${money(e.cost)}</td><td class="num">${dur(e.time)}</td><td><div class="share"><i style="width:${total ? (e.cost/total*100).toFixed(1) : 0}%"></i></div></td></tr>`).join('')}</tbody></table>
+    <p class="note">Output tokens vary by run; budget roughly −20% / +35% around this estimate. Reasoning routes bill their hidden reasoning tokens as output.</p>` : '';
+  const over = S.budget > 0 && total > S.budget;
+  $('#budgetMsg').innerHTML = over ? `<div class="msg warn"><b>Over budget.</b> Estimate ${money(total)} exceeds your ${money(S.budget)} cap by ${money(total - S.budget)}. Reduce trials, drop the most expensive route or raise the cap. The CLI aborts any run that crosses <span class="mono">--budget</span>.</div>` : '';
+  const btn = $('#runBtn');
+  btn.disabled = S.running || !rs.length || over;
+  $('#runHint').textContent = S.running ? '' : !rs.length ? 'No compatible routes selected.' : over ? 'Blocked by budget cap.' : `Simulated in-browser. A real run would cost about ${money(total)}.`;
+}
+function renderSnippet(){
+  const su = suite(), rs = chosen(), ids = rs.filter(r => !r.custom).map(r => r.id), c = customRoute();
+  let t;
+  if (S.snip === 'cli') {
+    const flags = ids.map(i => `  --model ${i} \\`);
+    if (c) flags.push(`  --endpoint "${esc(c.base || 'https://your-host/v1')}" --endpoint-model ${esc(c.model || c.id.slice(7))} --endpoint-key-env CUSTOM_KEY \\`);
+    t = `<span class="c"># install once, then authenticate</span>
+pip install crucible-router
+export CRUCIBLE_API_KEY=…
+
+<span class="c"># preview compatibility and cost; spends nothing</span>
+crucible plan --suite ${su.id} --trials ${S.trials} ${ids.map(i=>'--model '+i).join(' ')}
+
+<span class="c"># run it</span>
+crucible run --suite ${su.id} \\
+${flags.join('\n')}
+  --trials ${S.trials} --seed ${S.seed} --budget ${S.budget} \\
+  --export html,json`;
+  } else if (S.snip === 'py') {
+    t = `from crucible import Router
+
+router = Router()  <span class="c"># reads CRUCIBLE_API_KEY</span>
+plan = router.plan(
+    suite="${su.id}",
+    models=[${ids.map(i=>`"${i}"`).join(', ')}],
+    trials=${S.trials},
+)
+print(plan.cost_usd, plan.incompatible)
+
+run = router.run(plan, seed=${S.seed}, budget_usd=${S.budget})
+print(run.leaderboard())
+print(run.compare("${ids[0] || 'a'}", "${ids[1] || 'b'}"))
+run.export("report.html")`;
+  } else {
+    t = `curl ${API}/runs \\
+  -H "Authorization: Bearer $CRUCIBLE_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "suite": "${su.id}",
+    "models": [${ids.map(i=>`"${i}"`).join(', ')}],
+    "trials": ${S.trials},
+    "seed": ${S.seed},
+    "budget_usd": ${S.budget},
+    "export": ["json", "html"]
+  }'
+
+<span class="c"># poll status, then fetch results</span>
+curl ${API}/runs/$RUN_ID/results -H "Authorization: Bearer $CRUCIBLE_API_KEY"`;
+  }
+  $('#snip').innerHTML = t;
+}
+function update(){ renderSuites(); renderRoutes(); renderMatrix(); renderEstimate(); renderSnippet(); }
+
+// ---------- builder events ----------
+$('#suiteList').addEventListener('click', e => { const b = e.target.closest('[data-suite]'); if (!b || S.running) return; S.suite = b.dataset.suite; update(); });
+$('#routeList').addEventListener('click', e => { const b = e.target.closest('[data-route]'); if (!b || S.running) return;
+  const id = b.dataset.route; S.routes.has(id) ? S.routes.delete(id) : S.routes.add(id); update(); });
+const num = (el, lo, hi, def) => { const v = parseFloat(el.value); return isFinite(v) ? Math.min(hi, Math.max(lo, v)) : def; };
+[['trials',1,20,5,true],['seed',0,2147483647,2026,true],['conc',1,64,8,true],['budget',0,1e7,0,false]].forEach(([k, lo, hi, def, int]) =>
+  $('#' + k).addEventListener('input', e => { let v = num(e.target, lo, hi, def); S[k] = int ? Math.round(v) : v; update(); }));
+const cRead = () => { const c = S.custom;
+  c.base = $('#cBase').value; c.model = $('#cModel').value; c.key = $('#cKey').value; c.ctx = +$('#cCtx').value;
+  c.pin = Math.max(0, parseFloat($('#cPin').value) || 0); c.pout = Math.max(0, parseFloat($('#cPout').value) || 0);
+  c.on = $('#cOn').checked; c.caps = [...document.querySelectorAll('#cCaps input:checked')].map(i => i.value); update(); };
+['#cBase','#cModel','#cKey','#cCtx','#cPin','#cPout','#cOn'].forEach(s => $(s).addEventListener('input', cRead));
+$('#cOn').addEventListener('change', cRead); $('#cCaps').addEventListener('change', cRead);
+
+$('#cTest').addEventListener('click', async () => {
+  const out = $('#cResult'), c = S.custom, btn = $('#cTest');
+  let base = c.base.trim().replace(/\/+$/, '');
+  const show = (cls, html) => out.innerHTML = `<div class="msg ${cls}">${html}</div>`;
+  let u; try { u = new URL(base); } catch (e) { return show('err', 'Enter a full base URL such as <span class="mono">https://host.example/v1</span>.'); }
+  if (!/^https?:$/.test(u.protocol)) return show('err', 'Base URL must start with http:// or https://.');
+  if (!c.model.trim()) return show('err', 'Enter a model name to test.');
+  const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(u.hostname);
+  if (location.protocol === 'https:' && u.protocol === 'http:' && !local) return show('err', 'This page is served over HTTPS, so the browser will block a plain http:// endpoint (mixed content). Use https, or run the CLI.');
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 20000), t0 = performance.now();
+  btn.disabled = true; show('', 'Sending a 1-message test request…');
+  try {
+    const headers = {'Content-Type':'application/json'}; if (c.key) headers.Authorization = 'Bearer ' + c.key;
+    const res = await fetch(base + '/chat/completions', {method:'POST', headers, signal:ctl.signal, body:JSON.stringify({model:c.model.trim(), messages:[{role:'user', content:'Reply with the single word: ok'}], max_tokens:5, temperature:0})});
+    const ms = Math.round(performance.now() - t0), text = await res.text();
+    if (!res.ok) {
+      const hint = res.status === 401 || res.status === 403 ? ' Check the API key.' : res.status === 404 ? ' Check the base URL (it usually ends in /v1) and the model name.' : res.status === 429 ? ' Rate limited; try again shortly.' : '';
+      return show('err', `<b>HTTP ${res.status}</b> after ${ms} ms.${hint}<br><span class="mono" style="font-size:12px">${esc(text.slice(0, 300))}</span>`);
+    }
+    let j; try { j = JSON.parse(text); } catch (e) { return show('warn', `Got HTTP 200 in ${ms} ms, but the body isn't JSON, so this may not be an OpenAI-compatible endpoint.<br><span class="mono" style="font-size:12px">${esc(text.slice(0, 200))}</span>`); }
+    const reply = j.choices && j.choices[0] && (j.choices[0].message ? j.choices[0].message.content : j.choices[0].text);
+    const usage = j.usage ? ` · ${j.usage.prompt_tokens ?? '?'} in / ${j.usage.completion_tokens ?? '?'} out tokens` : '';
+    show(reply == null ? 'warn' : 'ok', `<b>${reply == null ? 'Connected, but the response shape is unexpected' : 'Connected'}</b> in ${ms} ms · model <span class="mono">${esc(j.model || c.model)}</span>${usage}<br>Reply: <span class="mono">${esc(reply == null ? JSON.stringify(j).slice(0, 200) : reply)}</span>`);
+  } catch (e) {
+    if (e.name === 'AbortError') show('err', 'Timed out after 20 s with no response.');
+    else show('err', `<b>Network error:</b> ${esc(e.message)}.<br>Browsers report a CORS block and an unreachable host the same way, so this page can't tell them apart. Most hosted providers don't send <span class="mono">Access-Control-Allow-Origin</span> for browser calls. The endpoint may work fine from the <span class="mono">crucible</span> CLI, which runs outside the browser. To test from here, enable CORS on your server or put a local proxy in front of it.`);
+  } finally { clearTimeout(timer); btn.disabled = false; }
+});
+
+// ---------- snippet + copy ----------
+async function copy(text, btn){
+  try { await navigator.clipboard.writeText(text); }
+  catch (e) { const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (_) {} ta.remove(); }
+  if (btn) { const o = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => btn.textContent = o, 1200); }
+}
+$('#snipTabs').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.snip = b.dataset.k;
+  [...$('#snipTabs').children].forEach(x => x.classList.toggle('on', x === b)); renderSnippet(); });
+$('#snipCopy').addEventListener('click', e => copy($('#snip').textContent, e.target));
+
+// ---------- simulation ----------
+function normal(rng){ let u = 0, v = 0; while (!u) u = rng(); v = rng(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+const sigmoid = x => 1 / (1 + Math.exp(-x));
+const mean = a => a.reduce((s, x) => s + x, 0) / (a.length || 1);
+const sd = a => { const m = mean(a); return Math.sqrt(a.reduce((s, x) => s + (x - m) ** 2, 0) / Math.max(1, a.length - 1)); };
+const quant = (a, q) => { const b = a.slice().sort((x, y) => x - y); return b[Math.min(b.length - 1, Math.floor(q * b.length))]; };
+
+function taskDifficulties(su){
+  const r = RNG(su.id + '|tasks');  // task set is fixed by suite version, not by run seed
+  return Array.from({length:su.tasks}, () => su.diff + 1.3 * normal(r));
+}
+function simulate(su, route, diffs, trials, seed){
+  const rng = RNG(su.id + '|' + route.id + '|' + seed);
+  const ability = route.str + (route.aff[su.domain] || 0) + 0.15 * normal(RNG(su.id + '|' + route.id));
+  const n = su.tasks, passes = [], lats = [];
+  let tin = 0, tout = 0;
+  const taskSkill = diffs.map(d => ability - d + 0.5 * normal(rng));
+  for (let t = 0; t < trials; t++) {
+    const row = new Uint8Array(n);
+    for (let i = 0; i < n; i++) {
+      row[i] = rng() < sigmoid(1.4 * taskSkill[i]) ? 1 : 0;
+      const ti = su.tin * (0.85 + 0.3 * rng()), to = su.tout * route.outMult * (0.6 + 0.8 * rng());
+      tin += ti; tout += to;
+      lats.push(route.lat * (0.6 + to / 1500) * Math.exp(0.35 * normal(rng)));
+    }
+    passes.push(row);
+  }
+  const taskMeans = Array.from({length:n}, (_, i) => passes.reduce((s, row) => s + row[i], 0) / trials);
+  const trialScores = passes.map(row => mean(Array.from(row)));
+  const m = mean(taskMeans), se = sd(taskMeans) / Math.sqrt(n);
+  return {
+    id:route.id, custom:!!route.custom, base:route.base || null, mean:m,
+    lo:Math.max(0, m - 1.96 * se), hi:Math.min(1, m + 1.96 * se),
+    passAll:taskMeans.filter(x => x === 1).length / n,
+    trialScores, taskMeans, passes, lats,
+    tin, tout, cost:(tin * route.pin + tout * route.pout) / 1e6,
+    p50:quant(lats, 0.5), p95:quant(lats, 0.95)
+  };
+}
+
+let anim = null;
+function startRun(){
+  const su = suite(), all = chosen(), rs = all.filter(r => !compat(su, r).length);
+  if (!rs.length) return;
+  S.running = true; renderEstimate();
+  $('#runBtn').disabled = true; $('#cancelBtn').classList.remove('hidden'); $('#runArea').classList.remove('hidden');
+  const diffs = taskDifficulties(su);
+  const sims = rs.map(r => simulate(su, r, diffs, S.trials, S.seed));
+  const maxLat = Math.max(...rs.map(r => r.lat));
+  const durs = rs.map(r => 2200 + 3800 * (r.lat / maxLat));
+  const total = su.tasks * S.trials;
+  $('#prog').innerHTML = rs.map((r, k) => `<div class="r"><span title="${esc(r.id)}">${esc(r.id)}</span><div class="bar"><i id="pb${k}"></i></div><span id="pt${k}" style="text-align:right">0%</span></div>`).join('');
+  const log = $('#log'); log.textContent = '';
+  const line = s => { log.textContent += s + '\n'; if (log.textContent.length > 20000) log.textContent = log.textContent.slice(-15000); log.scrollTop = log.scrollHeight; };
+  line(`${ROUTER} · suite ${su.id} · ${rs.length} routes × ${su.tasks} tasks × ${S.trials} trials · seed ${S.seed}`);
+  all.filter(r => compat(su, r).length).forEach(r => line(`skip  ${r.id}: ${compat(su, r).join('; ')}`));
+  const t0 = performance.now(), done = new Array(rs.length).fill(false);
+  let lastLog = 0, logRng = RNG('log' + S.seed);
+  anim = {cancel:false};
+  const tick = now => {
+    if (anim.cancel) { line('Cancelled. No results recorded.'); finish(null); return; }
+    const el = Math.max(0, now - t0);
+    rs.forEach((r, k) => {
+      const f = Math.min(1, el / durs[k]);
+      $('#pb' + k).style.width = (f * 100).toFixed(1) + '%'; $('#pt' + k).textContent = Math.floor(f * 100) + '%';
+      if (f >= 1 && !done[k]) { done[k] = true; const s = sims[k]; line(`done  ${r.id}  mean ${pct(s.mean)}%  [${pct(s.lo)}, ${pct(s.hi)}]  ${money(s.cost)}`); }
+    });
+    if (now - lastLog > 90) {
+      lastLog = now;
+      const live = rs.map((r, k) => k).filter(k => !done[k]);
+      if (live.length) {
+        const k = live[Math.floor(logRng() * live.length)], idx = Math.min(total - 1, Math.floor(Math.min(1, el / durs[k]) * total));
+        const t = Math.floor(idx / su.tasks), i = idx % su.tasks, s = sims[k];
+        line(`${s.passes[t][i] ? 'pass' : 'FAIL'}  ${rs[k].id}  task ${String(i + 1).padStart(3, '0')}/${su.tasks}  trial ${t + 1}  ${s.lats[idx].toFixed(2)}s`);
+      }
+    }
+    if (done.every(Boolean)) { finish(buildRun(su, rs, sims, all)); return; }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+function finish(run){
+  S.running = false; anim = null;
+  $('#cancelBtn').classList.add('hidden');
+  if (run) { S.run = run; saveRun(run); renderResults(); renderHistory(); $('#log').textContent += 'Run complete. Results below.\n'; }
+  update();
+}
+$('#runBtn').addEventListener('click', startRun);
+$('#cancelBtn').addEventListener('click', () => { if (anim) anim.cancel = true; });
+
+function buildRun(su, rs, sims, all){
+  const ts = new Date().toISOString();
+  const results = sims.map(s => ({id:s.id, custom:s.custom, mean:s.mean, lo:s.lo, hi:s.hi, passAll:s.passAll,
+    trialScores:s.trialScores.map(x => +x.toFixed(4)), cost:+s.cost.toFixed(4), tin:Math.round(s.tin), tout:Math.round(s.tout),
+    p50:+s.p50.toFixed(3), p95:+s.p95.toFixed(3), taskMeans:s.taskMeans.map(x => +x.toFixed(3))})).sort((a, b) => b.mean - a.mean);
+  const manifest = {
+    run_id:'run_' + hash(ts + su.id + S.seed).toString(36), created_at:ts,
+    suite:{id:su.id, tasks:su.tasks, content_hash:'sha256:' + hash(su.id).toString(16).padStart(8, '0') + hash(su.id + '#').toString(16).padStart(8, '0')},
+    routes:rs.map(r => ({id:r.id, context:r.ctx, usd_per_m_in:r.pin, usd_per_m_out:r.pout, ...(r.custom ? {endpoint:r.base, api_key:'[not recorded]'} : {})})),
+    skipped:all.filter(r => compat(su, r).length).map(r => ({id:r.id, reasons:compat(su, r)})),
+    trials:S.trials, seed:S.seed, concurrency:S.conc, budget_usd:S.budget,
+    scorer:SCORER, router:ROUTER, sampling:{temperature:0.7, top_p:1},
+    ci_method:'95% normal interval, standard error clustered by task (trials averaged within task)',
+    simulated:true
+  };
+  return {manifest, results};
+}
+
+// ---------- stats ----------
+function erf(x){ const s = Math.sign(x); x = Math.abs(x); const t = 1 / (1 + 0.3275911 * x);
+  return s * (1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x)); }
+const Phi = z => 0.5 * (1 + erf(z / Math.SQRT2));
+function paired(a, b, seed){
+  const d = a.taskMeans.map((x, i) => x - b.taskMeans[i]), n = d.length, m = mean(d), se = sd(d) / Math.sqrt(n);
+  const z = se > 0 ? m / se : 0, p = se > 0 ? 2 * (1 - Phi(Math.abs(z))) : 1;
+  const r = RNG(a.id + b.id + seed), boots = [];
+  for (let k = 0; k < 1000; k++) { let s = 0; for (let i = 0; i < n; i++) s += d[Math.floor(r() * n)]; boots.push(s / n); }
+  return {d:m, lo:m - 1.96 * se, hi:m + 1.96 * se, p, z, bLo:quant(boots, 0.025), bHi:quant(boots, 0.975),
+    wins:d.filter(x => x > 0).length, losses:d.filter(x => x < 0).length, n, mde:2.8 * se};
+}
+const pStr = p => p < 0.0001 ? '< 0.0001' : p.toFixed(4);
+
+// ---------- results ----------
+const label = id => id;
+function chartSVG(results){
+  const W = 720, L = 190, R = 70, rowH = 30, top = 22, H = top + results.length * rowH + 12, pw = W - L - R;
+  const x = v => L + v * pw;
+  let g = '';
+  [0, .25, .5, .75, 1].forEach(t => g += `<line x1="${x(t)}" x2="${x(t)}" y1="${top - 6}" y2="${H - 8}" stroke="var(--line)"/><text x="${x(t)}" y="12" text-anchor="middle" font-size="11" fill="var(--ink-3)" font-family="var(--mono)">${t * 100}%</text>`);
+  results.forEach((r, i) => {
+    const y = top + i * rowH, cy = y + rowH / 2 - 2, name = r.id.length > 26 ? r.id.slice(0, 25) + '…' : r.id;
+    g += `<text x="${L - 10}" y="${cy + 4}" text-anchor="end" font-size="12" fill="var(--ink)" font-family="var(--mono)">${esc(name)}</text>
+    <rect x="${L}" y="${cy - 8}" width="${Math.max(0, x(r.mean) - L)}" height="16" rx="3" fill="var(--accent)" opacity="${i === 0 ? .95 : .6}"/>
+    <line x1="${x(r.lo)}" x2="${x(r.hi)}" y1="${cy}" y2="${cy}" stroke="var(--ink)" stroke-width="1.5"/>
+    <line x1="${x(r.lo)}" x2="${x(r.lo)}" y1="${cy - 6}" y2="${cy + 6}" stroke="var(--ink)" stroke-width="1.5"/>
+    <line x1="${x(r.hi)}" x2="${x(r.hi)}" y1="${cy - 6}" y2="${cy + 6}" stroke="var(--ink)" stroke-width="1.5"/>
+    <text x="${W - R + 8}" y="${cy + 4}" font-size="12" fill="var(--ink-2)" font-family="var(--mono)">${pct(r.mean)}</text>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Mean score per route with 95% confidence intervals">${g}</svg>`;
+}
+function boardHTML(run){
+  return `<table><thead><tr><th>#</th><th>Route</th><th class="num">Mean</th><th class="num">95% CI</th><th class="num">Pass all trials</th><th class="num">Trial range</th><th class="num">Cost</th><th class="num">$ / solved</th><th class="num">p50</th><th class="num">p95</th></tr></thead><tbody>${run.results.map((r, i) => {
+    const solved = r.mean * r.taskMeans.length * run.manifest.trials;
+    return `<tr><td class="num">${i + 1}</td><td class="mono" style="font-size:13px">${esc(label(r.id))}${r.custom ? ' <span class="pill">custom</span>' : ''}</td><td class="num"><b>${pct(r.mean)}</b></td><td class="num">${pct(r.lo)}–${pct(r.hi)}</td><td class="num">${pct(r.passAll)}%</td><td class="num">${pct(Math.min(...r.trialScores))}–${pct(Math.max(...r.trialScores))}</td><td class="num">${money(r.cost)}</td><td class="num">${solved ? money(r.cost / solved) : '—'}</td><td class="num">${r.p50.toFixed(2)}s</td><td class="num">${r.p95.toFixed(2)}s</td></tr>`;
+  }).join('')}</tbody></table>`;
+}
+function renderPair(){
+  const run = S.run; if (!run) return;
+  const a = run.results.find(r => r.id === $('#pA').value), b = run.results.find(r => r.id === $('#pB').value);
+  if (!a || !b || a === b) { $('#pairOut').innerHTML = '<div class="msg">Pick two different routes.</div>'; return; }
+  const t = paired(a, b, run.manifest.seed), m = run.results.length * (run.results.length - 1) / 2;
+  const sig = t.p < 0.05, better = t.d > 0 ? a : b, worse = t.d > 0 ? b : a;
+  const overlap = a.lo <= b.hi && b.lo <= a.hi;
+  const verdict = sig ? `Yes: <span class="mono">${esc(better.id)}</span> beats <span class="mono">${esc(worse.id)}</span>.` : `Can't tell: no significant difference.`;
+  $('#pairOut').innerHTML = `<div class="verdict">${verdict}</div>
+  <table><tbody>
+    <tr><td>Difference (A − B)</td><td class="num">${t.d >= 0 ? '+' : ''}${pct(t.d)} pts</td></tr>
+    <tr><td>Paired 95% CI</td><td class="num">${pct(t.lo)} to ${pct(t.hi)}</td></tr>
+    <tr><td>Paired bootstrap 95% CI</td><td class="num">${pct(t.bLo)} to ${pct(t.bHi)}</td></tr>
+    <tr><td>p-value (two-sided)</td><td class="num">${pStr(t.p)}</td></tr>
+    <tr><td>Tasks A wins / B wins / ties</td><td class="num">${t.wins} / ${t.losses} / ${t.n - t.wins - t.losses}</td></tr>
+    <tr><td>Smallest gap this run can detect</td><td class="num">≈ ${pct(t.mde)} pts</td></tr>
+  </tbody></table>
+  <p class="note">${overlap && sig ? 'The two leaderboard intervals overlap, yet the paired test is significant. Reading overlap alone would have missed this result.' : !overlap && sig ? 'The intervals don\'t overlap, and the paired test agrees.' : 'With more trials or more tasks, a smaller gap would be detectable.'}${m > 1 ? ` This run has ${m} pairs. If you check many of them, rely on the Holm-corrected matrix instead.` : ''}</p>`;
+}
+function renderPairMatrix(run){
+  const rs = run.results, pairs = [];
+  rs.forEach((a, i) => rs.forEach((b, j) => { if (i < j) pairs.push({i, j, t:paired(a, b, run.manifest.seed)}); }));
+  const sorted = pairs.slice().sort((x, y) => x.t.p - y.t.p), M = pairs.length;
+  let stop = false;
+  sorted.forEach((pr, k) => { if (!stop && pr.t.p <= 0.05 / (M - k)) pr.sig = true; else stop = true; });
+  const cell = (i, j) => { if (i === j) return '<td class="muted">·</td>';
+    const pr = pairs.find(p => (p.i === i && p.j === j) || (p.i === j && p.j === i)), d = i < j ? pr.t.d : -pr.t.d;
+    return `<td class="${pr.sig ? (d > 0 ? 'sig-up' : 'sig-dn') : ''}" title="p = ${pStr(pr.t.p)}">${d >= 0 ? '+' : ''}${(d * 100).toFixed(1)}</td>`; };
+  $('#pairMx').innerHTML = rs.length < 2 ? '<div class="empty">Needs at least two routes.</div>' :
+    `<table class="pmx"><thead><tr><th></th>${rs.map((r, j) => `<th title="${esc(r.id)}">${j + 1}</th>`).join('')}</tr></thead><tbody>${rs.map((r, i) =>
+      `<tr><th class="rl" title="${esc(r.id)}">${i + 1}. ${esc(r.id.split('/').pop())}</th>${rs.map((_, j) => cell(i, j)).join('')}</tr>`).join('')}</tbody></table>`;
+}
+function rerunCmd(m){
+  return `crucible run --suite ${m.suite.id} ${m.routes.filter(r => !r.endpoint).map(r => '--model ' + r.id).join(' ')}${m.routes.filter(r => r.endpoint).map(r => ` --endpoint "${r.endpoint}" --endpoint-model ${r.id.slice(7)}`).join('')} --trials ${m.trials} --seed ${m.seed} --scorer ${m.scorer} --budget ${m.budget_usd}`;
+}
+function renderResults(){
+  const run = S.run;
+  $('#resEmpty').classList.toggle('hidden', !!run); $('#resBody').classList.toggle('hidden', !run);
+  if (!run) return;
+  const m = run.manifest;
+  $('#resMeta').textContent = `${m.run_id} · ${m.suite.id} · ${m.trials} trials · seed ${m.seed} · ${new Date(m.created_at).toLocaleString()}${m.simulated ? ' · simulated' : ''}`;
+  $('#board').innerHTML = boardHTML(run);
+  $('#chart').innerHTML = chartSVG(run.results);
+  const opts = run.results.map(r => `<option value="${esc(r.id)}">${esc(r.id)}</option>`).join('');
+  $('#pA').innerHTML = opts; $('#pB').innerHTML = opts;
+  if (run.results[1]) $('#pB').value = run.results[1].id;
+  renderPair(); renderPairMatrix(run);
+  $('#manifest').textContent = JSON.stringify(m, null, 2);
+}
+$('#pA').addEventListener('change', renderPair); $('#pB').addEventListener('change', renderPair);
+$('#manCopy').addEventListener('click', e => S.run && copy(JSON.stringify(S.run.manifest, null, 2), e.target));
+$('#cmdCopy').addEventListener('click', e => S.run && copy(rerunCmd(S.run.manifest), e.target));
+
+// ---------- export ----------
+function download(name, type, text){
+  const url = URL.createObjectURL(new Blob([text], {type}));
+  const a = Object.assign(document.createElement('a'), {href:url, download:name});
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+const csvCell = v => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
+function toCSV(run){
+  const m = run.manifest, head = ['rank','route','mean','ci_lo','ci_hi','pass_all_trials','trial_scores','tasks','trials','cost_usd','tokens_in','tokens_out','p50_s','p95_s','suite','seed','scorer','run_id'];
+  const rows = run.results.map((r, i) => [i + 1, r.id, r.mean.toFixed(4), r.lo.toFixed(4), r.hi.toFixed(4), r.passAll.toFixed(4), r.trialScores.join(' '), r.taskMeans.length, m.trials, r.cost, r.tin, r.tout, r.p50, r.p95, m.suite.id, m.seed, m.scorer, m.run_id]);
+  return [head].concat(rows).map(r => r.map(csvCell).join(',')).join('\n') + '\n';
+}
+function toHTML(run){
+  const m = run.manifest;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(m.suite.id)} · Crucible report</title>
+<style>:root{--bg:#f6f4ee;--surface:#fffdf8;--ink:#1b1d1a;--ink-2:#4a4d47;--ink-3:#7c7f77;--line:#dedad0;--accent:#1f5a46;--accent-soft:#dcebe3;--mono:ui-monospace,Menlo,monospace}
+@media(prefers-color-scheme:dark){:root{--bg:#121412;--surface:#1a1d1a;--ink:#ecebe5;--ink-2:#b9bab2;--ink-3:#83867e;--line:#2f332e;--accent:#6fc19c;--accent-soft:#1f3329}}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 system-ui,sans-serif}main{max-width:960px;margin:0 auto;padding:32px 16px}
+h1{font:500 2rem Georgia,serif;margin:0 0 6px}h2{font:500 1.3rem Georgia,serif;margin:32px 0 10px}.muted{color:var(--ink-3)}
+.tw{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{font:500 11px var(--mono);text-transform:uppercase;color:var(--ink-3)}td.num,th.num{text-align:right;font-family:var(--mono)}.mono{font-family:var(--mono)}
+.pill{font:11px var(--mono);padding:2px 6px;border-radius:99px;background:var(--accent-soft);color:var(--accent)}svg{width:100%;height:auto}
+pre{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;overflow:auto;font:12px/1.5 var(--mono)}</style></head>
+<body><main><p class="muted mono">Crucible Router report${m.simulated ? ' · simulated demo data' : ''}</p><h1>${esc(m.suite.id)}</h1>
+<p class="muted">${m.routes.length} routes · ${m.suite.tasks} tasks · ${m.trials} trials · seed ${m.seed} · ${esc(m.created_at)}</p>
+<h2>Leaderboard</h2><div class="tw">${boardHTML(run)}</div><h2>Mean score with 95% CI</h2>${chartSVG(run.results)}
+<h2>Reproduce</h2><pre>${esc(rerunCmd(m))}</pre><h2>Manifest</h2><pre>${esc(JSON.stringify(m, null, 2))}</pre></main></body></html>`;
+}
+document.querySelectorAll('[data-exp]').forEach(b => b.addEventListener('click', () => {
+  const run = S.run; if (!run) return;
+  const base = `crucible-${run.manifest.suite.id.replace('@', '-v')}-${run.manifest.run_id}`;
+  if (b.dataset.exp === 'json') download(base + '.json', 'application/json', JSON.stringify(run, null, 2));
+  else if (b.dataset.exp === 'csv') download(base + '.csv', 'text/csv', toCSV(run));
+  else download(base + '.html', 'text/html', toHTML(run));
+}));
+
+// ---------- history ----------
+const KEY = 'crucible.router.history';
+function loadHist(){ try { const v = JSON.parse(localStorage.getItem(KEY) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
+function storeHist(h){
+  for (let n = h.length; n > 0; n--) { try { localStorage.setItem(KEY, JSON.stringify(h.slice(0, n))); return true; } catch (e) {} }
+  return false;
+}
+function saveRun(run){ const h = loadHist().filter(x => x.manifest.run_id !== run.manifest.run_id); h.unshift(run); storeHist(h.slice(0, 15)); }
+function renderHistory(){
+  const h = loadHist();
+  $('#histTable').innerHTML = h.length ? `<table><thead><tr><th>When</th><th>Suite</th><th class="num">Routes</th><th class="num">Trials</th><th>Top route</th><th class="num">Cost</th><th></th></tr></thead><tbody>${h.map(r => {
+    const m = r.manifest, top = r.results[0], cost = r.results.reduce((s, x) => s + x.cost, 0), cur = S.run && S.run.manifest.run_id === m.run_id;
+    return `<tr class="hist-row"><td style="white-space:nowrap">${new Date(m.created_at).toLocaleString([], {dateStyle:'short', timeStyle:'short'})}${cur ? ' <span class="pill">open</span>' : ''}</td><td class="mono" style="font-size:13px">${esc(m.suite.id)}</td><td class="num">${r.results.length}</td><td class="num">${m.trials}</td><td class="mono" style="font-size:13px">${top ? esc(top.id) + ' · ' + pct(top.mean) : '—'}</td><td class="num">${money(cost)}</td><td style="white-space:nowrap"><button class="btn ghost sm" data-open="${esc(m.run_id)}">Open</button> <button class="btn ghost sm" data-del="${esc(m.run_id)}" aria-label="Remove run">✕</button></td></tr>`;
+  }).join('')}</tbody></table>` : '<div class="empty" style="border:0">No saved runs yet.</div>';
+  const opt = h.map(r => `<option value="${esc(r.manifest.run_id)}">${esc(r.manifest.suite.id)} · ${new Date(r.manifest.created_at).toLocaleString([], {dateStyle:'short', timeStyle:'short'})} · ${r.manifest.trials}×</option>`).join('');
+  let a = $('#hA').value, b = $('#hB').value;
+  if (a === b) a = b = '';
+  $('#hA').innerHTML = opt; $('#hB').innerHTML = opt;
+  if (h.length > 1) { $('#hA').value = h.some(r => r.manifest.run_id === a) ? a : h[1].manifest.run_id; $('#hB').value = h.some(r => r.manifest.run_id === b) ? b : h[0].manifest.run_id; }
+  renderDiff();
+}
+$('#histTable').addEventListener('click', e => {
+  const o = e.target.closest('[data-open]'), d = e.target.closest('[data-del]');
+  if (o) { const r = loadHist().find(x => x.manifest.run_id === o.dataset.open); if (r) { S.run = r; renderResults(); renderHistory(); $('#results').scrollIntoView({behavior:'smooth'}); } }
+  if (d) { storeHist(loadHist().filter(x => x.manifest.run_id !== d.dataset.del)); try { if (!loadHist().length) localStorage.removeItem(KEY); } catch (_) {} renderHistory(); }
+});
+function renderDiff(){
+  const h = loadHist(), A = h.find(r => r.manifest.run_id === $('#hA').value), B = h.find(r => r.manifest.run_id === $('#hB').value);
+  if (h.length < 2) { $('#diffOut').innerHTML = '<p class="note">You need at least two saved runs to compare.</p>'; return; }
+  if (!A || !B || A === B) { $('#diffOut').innerHTML = '<p class="note">Pick two different runs.</p>'; return; }
+  const ma = A.manifest, mb = B.manifest, same = ma.suite.id === mb.suite.id, sameSeed = same && ma.seed === mb.seed;
+  const notes = [];
+  if (!same) notes.push(`<div class="msg warn">These runs use different suites (<span class="mono">${esc(ma.suite.id)}</span> and <span class="mono">${esc(mb.suite.id)}</span>), so the scores below can't be compared directly.</div>`);
+  ['trials','seed','scorer'].forEach(k => { if (ma[k] !== mb[k]) notes.push(`<span class="pill">${k}: ${esc(ma[k])} → ${esc(mb[k])}</span>`); });
+  const ids = [...new Set(A.results.map(r => r.id).concat(B.results.map(r => r.id)))];
+  const rows = ids.map(id => {
+    const a = A.results.find(r => r.id === id), b = B.results.find(r => r.id === id);
+    let d = '—', sig = '';
+    if (a && b) {
+      const dv = b.mean - a.mean; d = (dv >= 0 ? '+' : '') + pct(dv);
+      if (same && a.taskMeans.length === b.taskMeans.length) { const t = paired(b, a, mb.seed); sig = t.p < 0.05 ? `<span class="${dv > 0 ? 'up' : 'down'}">p ${pStr(t.p)}</span>` : `<span class="muted">p ${pStr(t.p)}</span>`; }
+    }
+    return `<tr><td class="mono" style="font-size:13px">${esc(id)}</td><td class="num">${a ? pct(a.mean) : '—'}</td><td class="num">${b ? pct(b.mean) : '—'}</td><td class="num ${a && b ? (b.mean >= a.mean ? 'up' : 'down') : ''}">${d}</td><td class="num">${sig || '—'}</td></tr>`;
+  }).join('');
+  $('#diffOut').innerHTML = `${notes.length ? `<div class="row" style="gap:6px;margin-bottom:10px">${notes.join('')}</div>` : ''}
+  <div class="tablewrap"><table><thead><tr><th>Route</th><th class="num">Baseline</th><th class="num">Candidate</th><th class="num">Δ pts</th><th class="num">Paired test</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <p class="note">${same ? (sameSeed && ma.trials === mb.trials ? 'Same suite, seed and trials. Any difference comes from the route itself or a scorer change.' : 'Same suite version and task set, so the paired test compares each route with itself across the two runs.') : 'The paired test needs the same task set, so it is shown only when both runs use the same suite version.'}</p>`;
+}
+$('#hA').addEventListener('change', renderDiff); $('#hB').addEventListener('change', renderDiff);
+
+// ---------- init ----------
+update();
+const last = loadHist()[0]; if (last) S.run = last;
+renderResults(); renderHistory();
+})();
+</script>
+</body>
+</html>

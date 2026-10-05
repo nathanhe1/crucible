@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poker Room · Crucible</title>
+<meta name="description" content="Six-max no-limit hold'em against five transparent bots. Every bot decision shows its Monte Carlo equity, pot odds and reason.">
+<link rel="stylesheet" href="styles.css">
+<style>
+.pk-top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:18px}
+.pk-top .seed{font:12px var(--mono);color:var(--ink-3)}
+.pk-grid{display:grid;gap:20px;grid-template-columns:minmax(0,1fr);padding-bottom:72px}
+@media(min-width:1020px){.pk-grid{grid-template-columns:minmax(0,1fr) 360px}}
+.pk-main,.pk-side{display:grid;gap:20px;align-content:start;min-width:0}
+.pk-box{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r);padding:8px;overflow:hidden}
+.pk-table{position:relative;aspect-ratio:16/10;margin:96px 80px 100px}
+.pk-felt{position:absolute;inset:0;border-radius:50%;border:11px solid #4f3626;
+  background:radial-gradient(ellipse at 50% 42%,color-mix(in srgb,var(--felt) 78%,#9fd4b8) 0%,var(--felt) 72%);
+  box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--felt) 60%,#fff 18%),inset 0 10px 40px rgba(0,0,0,.35),0 8px 24px rgba(0,0,0,.18)}
+.pk-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;color:#eaf3ee;width:84%}
+.pk-pot{font:500 13px var(--mono);letter-spacing:.04em;margin-bottom:8px;min-height:1.3em}
+.pk-board{display:flex;justify-content:center;gap:5px;min-height:62px}
+.pk-street{font:11px var(--mono);text-transform:uppercase;letter-spacing:.12em;opacity:.7;margin-top:8px}
+.seat{position:absolute;transform:translate(-50%,-50%);width:136px;background:var(--surface);border:1px solid var(--line);
+  border-radius:10px;padding:6px 7px 7px;text-align:center;font-size:13px;line-height:1.3;transition:opacity .2s,box-shadow .2s;z-index:2}
+.s0{left:50%;top:100%}.s1{left:1%;top:76%}.s2{left:1%;top:22%}.s3{left:50%;top:0}.s4{left:99%;top:22%}.s5{left:99%;top:76%}
+.seat.turn{box-shadow:0 0 0 2px var(--accent)}
+.seat.win{box-shadow:0 0 0 2px var(--up)}
+.seat.out>*{opacity:.45}
+.seat .hc{display:flex;justify-content:center;gap:3px;min-height:46px;margin-bottom:3px}
+.seat .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seat .st{font:500 10px var(--mono);color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em}
+.seat .sk{font:12px var(--mono);color:var(--ink-2)}
+.seat .bt{color:var(--warn)}
+.seat .lbl{font:11px var(--mono);color:var(--up);margin-top:2px}
+.dbtn{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;background:var(--ink);color:var(--bg);font:600 9px var(--mono);margin-left:4px;vertical-align:1px}
+.bub{margin-top:5px;font:11px/1.35 var(--mono);background:var(--accent-soft);color:var(--ink);border-radius:6px;padding:4px 5px;text-align:left}
+.bub b{font-weight:600;color:var(--accent)}
+.cd{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:32px;height:45px;border-radius:5px;
+  background:#fcfbf6;color:#1b1d1a;border:1px solid #cfcabd;font:600 14px/1 var(--mono);box-shadow:0 1px 2px rgba(0,0,0,.25);flex:none}
+.cd i{font-style:normal;font-size:15px;margin-top:2px}
+.cd.red{color:#c0392b}
+.cd.back{background:repeating-linear-gradient(45deg,#2c6e56 0 4px,#3f8a6d 4px 8px);border-color:#24543f}
+.cd.dim{opacity:.45}
+.cd.big{width:44px;height:62px;font-size:18px}.cd.big i{font-size:20px}
+.cd.slot{background:transparent;border:1px dashed rgba(255,255,255,.25);box-shadow:none}
+.pk-act{display:grid;gap:12px}
+.pk-status{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:14px}
+.pk-status .hand{font:13px var(--mono);color:var(--up)}
+.pk-btns{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pk-btns .btn{justify-content:center;padding:11px 8px}
+.pk-btns kbd,.pk-btns .k{font:11px var(--mono);opacity:.6}
+.pk-raise{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
+.pk-raise input[type=range]{padding:0;border:0;background:none;accent-color:var(--accent)}
+.pk-raise output{font:500 14px var(--mono);min-width:76px;text-align:right}
+.pk-presets{display:flex}.pk-presets button{flex:1;padding:6px 4px;white-space:nowrap}
+.feed{list-style:none;margin:0;padding:0;display:grid;gap:8px;font-size:13px}
+.feed li{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.feed li:last-child{border-bottom:0;padding-bottom:0}
+.feed .who{font-weight:600}
+.feed .nums{font:12px var(--mono);color:var(--ink-3);text-align:right}
+.feed .why{grid-column:1/-1;color:var(--ink-2)}
+.feed .why b{color:var(--ink)}
+.card h3{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px}
+.pk-stats td,.pk-stats th{padding:7px 6px;font-size:12.5px}
+.pk-stats td{white-space:nowrap}
+.pk-log{margin:0;height:340px;overflow:auto;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:10px;
+  font:11.5px/1.5 var(--mono);color:var(--ink-2);white-space:pre-wrap;word-break:break-word}
+.lb{display:grid;gap:10px}
+.lb-row{display:grid;grid-template-columns:22px minmax(0,1.2fr) minmax(0,2fr) 92px;gap:10px;align-items:center;font-size:13px}
+.lb-row .r{font:12px var(--mono);color:var(--ink-3)}
+.lb-row .v{font:12px var(--mono);text-align:right}
+.lb-bar{position:relative;height:16px;background:var(--surface-2);border-radius:4px}
+.lb-bar .z{position:absolute;top:-3px;bottom:-3px;width:1px;background:var(--ink-3)}
+.lb-bar .ci{position:absolute;top:5px;height:6px;border-radius:3px;background:var(--ink-3);opacity:.55}
+.lb-bar .ci.up{background:var(--up);opacity:.8}.lb-bar .ci.down{background:var(--down);opacity:.8}
+.lb-bar .m{position:absolute;top:3px;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:var(--ink)}
+.hidden{display:none!important}
+@media(max-width:640px){
+  .pk-table{aspect-ratio:3/4;margin:78px 47px 84px}
+  .seat{width:92px;padding:4px 4px 5px;font-size:11.5px}
+  .s1,.s2{left:0}.s4,.s5{left:100%}
+  .seat .hc{min-height:34px}
+  .cd{width:24px;height:34px;font-size:11px;border-radius:4px}.cd i{font-size:11px;margin-top:1px}
+  .cd.big{width:29px;height:41px;font-size:13px}.cd.big i{font-size:13px}
+  .pk-board{gap:3px;min-height:41px}
+  .seat .st,.bub .od{display:none}
+  .bub{font-size:10px;padding:3px 4px}
+  .lb-row{grid-template-columns:18px minmax(0,1fr) 84px}.lb-bar{grid-column:2/-1;grid-row:2}
+}
+</style>
+</head>
+<body>
+<div id="site-header"></div>
+<main class="wrap">
+  <div class="page-h">
+    <span class="eyebrow">Environment · Poker Room</span>
+    <h1>Poker Room</h1>
+    <p class="lede">Six-max no-limit hold'em, blinds 50/100, $10,000 play-money stacks. Five bots with fixed styles, and every one of them shows its work: a 300-hand Monte Carlo equity estimate, the pot odds it faces, and a one-line reason for each action.</p>
+  </div>
+
+  <div class="pk-top">
+    <div class="seg" id="modeSeg" role="group" aria-label="Mode"><button data-m="play" class="on">Play</button><button data-m="spectate">Spectate</button></div>
+    <button class="btn sm" id="newBtn">New table</button>
+    <button class="btn sm ghost" id="pauseBtn">Pause</button>
+    <div class="seg" id="speedSeg" role="group" aria-label="Speed"><button data-s="1" class="on">1×</button><button data-s="2">2×</button><button data-s="4">4×</button><button data-s="0" id="maxBtn">Max</button></div>
+    <span class="seed" id="seedTxt"></span>
+  </div>
+
+  <div class="pk-grid">
+    <div class="pk-main">
+      <div class="pk-box"><div class="pk-table" id="table">
+        <div class="pk-felt"></div>
+        <div class="pk-center"><div class="pk-pot" id="pot"></div><div class="pk-board" id="board"></div><div class="pk-street" id="street"></div></div>
+      </div></div>
+
+      <div class="card pk-act" id="actPanel">
+        <div class="pk-status"><span id="status" aria-live="polite">Shuffling…</span><span class="hand" id="myHand"></span></div>
+        <div class="pk-btns">
+          <button class="btn ghost" id="foldBtn" disabled>Fold <span class="k">F</span></button>
+          <button class="btn" id="callBtn" disabled>Check <span class="k">C</span></button>
+          <button class="btn accent" id="raiseBtn" disabled>Raise <span class="k">R</span></button>
+        </div>
+        <div class="pk-raise"><input type="range" id="slider" min="0" max="0" step="1" aria-label="Raise amount" disabled><output id="amt" class="mono">—</output></div>
+        <div class="seg pk-presets" id="presets">
+          <button data-p="min">Min</button><button data-p=".5">½ pot</button><button data-p=".75">¾ pot</button><button data-p="1">Pot</button><button data-p="all">All-in</button>
+        </div>
+      </div>
+
+      <div class="card hidden" id="lbCard">
+        <h3>Leaderboard <span class="pill" id="lbHands">0 hands</span></h3>
+        <p style="font-size:14px">Win rate in big blinds per 100 hands with a 95% confidence interval. Bars that cross zero aren't separable from break-even yet. Poker is noisy, and rankings usually need thousands of hands to settle. Coinflip is a random-action baseline. Stacks reset to 100 big blinds every hand so results stay comparable.</p>
+        <div class="lb" id="lb"></div>
+      </div>
+
+      <div class="card">
+        <h3>Bot reasoning <span class="pill">equity vs random hands · 300 sims</span></h3>
+        <ul class="feed" id="feed"><li class="muted">Decisions will appear here as the bots act.</li></ul>
+      </div>
+    </div>
+
+    <aside class="pk-side">
+      <div class="card" style="padding:18px">
+        <h3 id="statsTitle">Session stats</h3>
+        <div class="tablewrap"><table class="pk-stats"><thead><tr><th>Player</th><th class="num">Hands</th><th class="num">VPIP</th><th class="num">PFR</th><th class="num">Net</th><th class="num">bb/100</th></tr></thead><tbody id="stats"></tbody></table></div>
+      </div>
+      <div class="card" style="padding:18px">
+        <h3>Hand history <button class="btn sm ghost" id="exportBtn">Export .txt</button></h3>
+        <pre class="pk-log" id="log"></pre>
+      </div>
+    </aside>
+  </div>
+</main>
+<div id="site-footer"></div>
+<script src="common.js"></script>
+<script>
+// ==ENGINE== (pure functions: cards, evaluator, equity, pots; extracted for node tests)
+const RANKS = '23456789TJQKA', SUITS = 'shdc', SUIT_SYM = ['♠', '♥', '♦', '♣'];
+const cardStr = c => RANKS[c >> 2] + SUITS[c & 3];
+const SING = ['Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Jack','Queen','King','Ace'];
+const PLUR = ['Twos','Threes','Fours','Fives','Sixes','Sevens','Eights','Nines','Tens','Jacks','Queens','Kings','Aces'];
+const CAT_BASE = 1048576; // 16^5: score = cat*16^5 + five 4-bit kicker ranks
+
+function straightHigh(mask) {
+  for (let h = 12; h >= 4; h--) if (((mask >> (h - 4)) & 31) === 31) return h;
+  return (mask & 0x100F) === 0x100F ? 3 : -1; // wheel A-2-3-4-5
+}
+
+// Scores 5-7 cards; higher is better, equal means a tie.
+function evalHand(cards) {
+  const cnt = new Array(13).fill(0), sm = [0, 0, 0, 0], sc = [0, 0, 0, 0];
+  let mask = 0;
+  for (const c of cards) { const r = c >> 2, s = c & 3; cnt[r]++; sm[s] |= 1 << r; sc[s]++; mask |= 1 << r; }
+  const pack = (cat, ks) => { let v = cat; for (let i = 0; i < 5; i++) v = v * 16 + (ks[i] ?? 0); return v; };
+  let flush = null;
+  for (let s = 0; s < 4; s++) if (sc[s] >= 5) {
+    const sh = straightHigh(sm[s]);
+    if (sh >= 0) return pack(8, [sh]);
+    flush = [];
+    for (let r = 12; r >= 0 && flush.length < 5; r--) if (sm[s] >> r & 1) flush.push(r);
+  }
+  const quads = [], trips = [], pairs = [], singles = [];
+  for (let r = 12; r >= 0; r--) {
+    const n = cnt[r];
+    if (n === 4) quads.push(r); else if (n === 3) trips.push(r); else if (n === 2) pairs.push(r); else if (n === 1) singles.push(r);
+  }
+  if (quads.length) {
+    let k = -1; for (let r = 12; r >= 0; r--) if (r !== quads[0] && cnt[r]) { k = r; break; }
+    return pack(7, [quads[0], k]);
+  }
+  if (trips.length && (trips.length > 1 || pairs.length)) return pack(6, [trips[0], Math.max(trips[1] ?? -1, pairs[0] ?? -1)]);
+  if (flush) return pack(5, flush);
+  const sh = straightHigh(mask);
+  if (sh >= 0) return pack(4, [sh]);
+  if (trips.length) return pack(3, [trips[0], ...singles.slice(0, 2)]);
+  if (pairs.length >= 2) return pack(2, [pairs[0], pairs[1], Math.max(pairs[2] ?? -1, singles[0] ?? -1)]);
+  if (pairs.length) return pack(1, [pairs[0], ...singles.slice(0, 3)]);
+  return pack(0, singles.slice(0, 5));
+}
+
+function describe(s) {
+  const cat = Math.floor(s / CAT_BASE), k = i => Math.floor(s / 16 ** (4 - i)) % 16;
+  switch (cat) {
+    case 8: return k(0) === 12 ? 'Royal flush' : `Straight flush, ${SING[k(0)]}-high`;
+    case 7: return `Four ${PLUR[k(0)]}`;
+    case 6: return `Full house, ${PLUR[k(0)]} full of ${PLUR[k(1)]}`;
+    case 5: return `Flush, ${SING[k(0)]}-high`;
+    case 4: return `Straight, ${SING[k(0)]}-high`;
+    case 3: return `Three ${PLUR[k(0)]}`;
+    case 2: return `Two pair, ${PLUR[k(0)]} and ${PLUR[k(1)]}`;
+    case 1: return `Pair of ${PLUR[k(0)]}`;
+    default: return `${SING[k(0)]}-high`;
+  }
+}
+
+// Monte Carlo share of the pot vs nOpp uniformly random hands (ties count fractionally).
+function equity(hole, board, nOpp, sims, rng) {
+  if (nOpp < 1) return 1;
+  const used = new Set([...hole, ...board]), deck = [];
+  for (let c = 0; c < 52; c++) if (!used.has(c)) deck.push(c);
+  const need = 2 * nOpp + 5 - board.length, mine = hole.concat(board), opp = [0, 0].concat(board);
+  let won = 0;
+  for (let i = 0; i < sims; i++) {
+    for (let k = 0; k < need; k++) { const j = k + Math.floor(rng() * (deck.length - k)); const t = deck[k]; deck[k] = deck[j]; deck[j] = t; }
+    const run = deck.slice(2 * nOpp, need), me = evalHand(mine.concat(run));
+    let tie = 1, lost = false;
+    for (let o = 0; o < nOpp && !lost; o++) {
+      opp[0] = deck[2 * o]; opp[1] = deck[2 * o + 1];
+      const s = evalHand(opp.concat(run));
+      if (s > me) lost = true; else if (s === me) tie++;
+    }
+    if (!lost) won += 1 / tie;
+  }
+  return won / sims;
+}
+
+// Main pot + side pots from each seat's total contribution. Folded seats pay in but can't win.
+function buildPots(contrib, folded) {
+  const levels = [...new Set(contrib.filter(c => c > 0))].sort((a, b) => a - b), pots = [];
+  let prev = 0, carry = 0;
+  for (const L of levels) {
+    let amt = carry; carry = 0;
+    for (const c of contrib) amt += Math.max(0, Math.min(c, L) - prev);
+    const elig = contrib.map((_, i) => i).filter(i => !folded[i] && contrib[i] >= L), last = pots[pots.length - 1];
+    if (!elig.length) { if (last) last.amount += amt; else carry = amt; }
+    else if (last && last.elig.join() === elig.join()) last.amount += amt;
+    else pots.push({ amount: amt, elig });
+    prev = L;
+  }
+  return pots;
+}
+
+// scores[i] = hand score (ignored if not eligible). order = seats clockwise from the button's left (odd chips go first).
+function awardPots(pots, scores, order) {
+  const pay = new Array(scores.length).fill(0), results = [];
+  for (const pot of pots) {
+    const best = Math.max(...pot.elig.map(i => scores[i]));
+    const w = order.filter(i => pot.elig.includes(i) && scores[i] === best);
+    const share = Math.floor(pot.amount / w.length); let rem = pot.amount - share * w.length;
+    for (const i of w) { pay[i] += share + (rem > 0 ? 1 : 0); if (rem > 0) rem--; }
+    results.push({ amount: pot.amount, winners: w });
+  }
+  return { pay, results };
+}
+// ==/ENGINE==
+
+// ---------- table + bots ----------
+const SB = 50, BB = 100, START = 10000, SIMS = 300, N = 6;
+const STYLES = {
+  tag:     { label: 'Tight-Aggressive', enter: 1.3,  raise: 1.5,  aggr: .85, margin: -.03, bluff: .05, size: .75 },
+  lp:      { label: 'Loose-Passive',    enter: .75,  raise: 1.9,  aggr: .3,  margin: .10,  bluff: 0,   size: .5 },
+  maniac:  { label: 'Maniac',           enter: .55,  raise: .95,  aggr: .6,  margin: .08,  bluff: .3,  size: 1 },
+  calc:    { label: 'Calculator',       enter: 0,    raise: 1.4,  aggr: 1,   margin: 0,    bluff: 0,   size: .66 },
+  bluffer: { label: 'Bluffer',          enter: 1.05, raise: 1.5,  aggr: .6,  margin: -.02, bluff: .45, size: .8 },
+  random:  { label: 'Random baseline',  random: true },
+  human:   { label: 'Human' }
+};
+const ROSTER = [['Ironside', 'tag'], ['Calla', 'lp'], ['Blitz', 'maniac'], ['Abacus', 'calc'], ['Mirage', 'bluffer']];
+const STREETS = ['Pre-flop', 'Flop', 'Turn', 'River', 'Showdown'];
+
+const $ = id => document.getElementById(id);
+const fmt = n => '$' + Math.round(n).toLocaleString('en-US');
+const pct = x => Math.round(x * 100) + '%';
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const G = { gen: 0, speed: 1, paused: false, mode: 'play', log: [], feed: [] };
+
+const live = () => G.players.filter(p => !p.folded);
+const potTotal = () => G.players.reduce((a, p) => a + p.total, 0);
+const dl = ms => G.speed ? ms / G.speed : 0;
+async function wait(ms, gen) { if (ms > 0) await sleep(ms); while (G.paused && gen === G.gen) await sleep(120); }
+function log(s) { s = s.replace(/^You (\w+)s\b/, 'You $1').replace(/^(You .*) is all-in/, '$1 are all-in'); G.log.push(s); if (G.log.length > 80000) G.log.splice(0, 20000); }
+
+function shuffle(rng) {
+  const d = [...Array(52).keys()];
+  for (let i = 51; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; }
+  return d;
+}
+
+function legal(p) {
+  const toCall = Math.min(G.currentBet - p.bet, p.stack), maxTo = p.bet + p.stack;
+  const others = G.players.some(q => q !== p && !q.folded && !q.allIn);
+  return { toCall, maxTo, canRaise: !p.locked && others && maxTo > G.currentBet,
+           minTo: Math.min(G.currentBet + G.minRaise, maxTo) };
+}
+const clampTo = (L, x) => Math.min(L.maxTo, Math.max(L.minTo, Math.round(x / 50) * 50));
+const potRaiseTo = (L, frac) => G.currentBet + frac * (potTotal() + L.toCall);
+
+function put(p, amt) { p.stack -= amt; p.bet += amt; p.total += amt; if (p.stack === 0) p.allIn = true; }
+
+function apply(p, a) {
+  const pre = G.street === 0;
+  let text;
+  if (a.type === 'fold') { p.folded = true; text = 'folds'; }
+  else if (a.type === 'check') text = 'checks';
+  else if (a.type === 'call') {
+    const amt = Math.min(G.currentBet - p.bet, p.stack); put(p, amt);
+    text = `calls ${fmt(amt)}` + (p.allIn ? ' and is all-in' : ''); if (pre) p.vp = true;
+  } else {
+    const L = legal(p), to = Math.min(L.maxTo, Math.max(L.minTo, a.to)), inc = to - G.currentBet;
+    const full = inc >= G.minRaise, wasBet = G.currentBet === 0;
+    put(p, to - p.bet);
+    if (full) G.minRaise = inc;
+    G.currentBet = to; G.raises++;
+    for (const q of G.players) if (q !== p && !q.folded && !q.allIn) {
+      if (full) q.locked = false; else if (q.acted) q.locked = true; // short all-in doesn't reopen raising
+      q.acted = false;
+    }
+    text = (wasBet ? `bets ${fmt(to)}` : `raises to ${fmt(to)}`) + (p.allIn ? ' and is all-in' : '');
+    if (pre) { p.vp = true; p.pr = true; }
+  }
+  p.acted = true;
+  p.last = text;
+  log(`${p.name} ${text}` + (a.eq != null ? `   [eq ${pct(a.eq)} vs ${a.opps} · odds ${pct(a.odds)} · ${a.why}]` : ''));
+  if (a.eq != null) {
+    p.thought = { eq: a.eq, odds: a.odds, act: text };
+    G.feed.unshift({ name: p.name, style: STYLES[p.style].label, eq: a.eq, odds: a.odds, opps: a.opps, act: text, why: a.why });
+    G.feed.length = Math.min(G.feed.length, 8);
+  }
+}
+
+function decide(p) {
+  const L = legal(p), opps = live().length - 1, pot = potTotal(), S = STYLES[p.style];
+  const eq = equity(p.hole, G.board, opps, SIMS, G.rng);
+  const odds = L.toCall > 0 ? L.toCall / (pot + L.toCall) : 0;
+  const fair = 1 / (opps + 1), rel = eq / fair, r = G.rng(), pre = G.street === 0;
+  const raiseBar = S.raise * (1 + .35 * G.raises); // each re-raise this street demands more equity
+  const sizeTo = f => clampTo(L, G.currentBet + Math.max(G.minRaise, f * (pot + L.toCall)));
+  const T = (type, why, to = 0) => ({ type, to, why, eq, odds, opps });
+  const check = L.toCall ? 'call' : 'check';
+  if (S.random) {
+    if (L.toCall > 0 && r < .3) return T('fold', 'coin flip: fold (baseline ignores its cards)');
+    if (L.canRaise && r > .8) return T('raise', 'coin flip: raise (baseline ignores its cards)', sizeTo(.3 + G.rng()));
+    return T(check, `coin flip: ${check} (baseline ignores its cards)`);
+  }
+  if (L.canRaise && rel >= raiseBar && r < S.aggr)
+    return T('raise', `value: ${pct(eq)} equity is ${rel.toFixed(1)}× a fair ${pct(fair)} share`, sizeTo(S.size * (rel > 2.2 ? 1.3 : 1)));
+  if (L.toCall === 0) {
+    if (L.canRaise && !pre && r > 1 - S.bluff) return T('raise', `checked to: a bet with ${pct(eq)} equity can fold out better hands`, sizeTo(S.size * .8));
+    return T('check', rel >= 1 ? 'some equity, but not enough edge to bet for value' : 'below a fair share, so take the free card');
+  }
+  const inRange = !pre || rel >= S.enter;
+  if (inRange && eq + S.margin >= odds)
+    return T('call', eq >= odds ? `${pct(eq)} equity ≥ ${pct(odds)} needed by pot odds` : `calling light: ${pct(eq)} equity < ${pct(odds)} odds, but wants to see cards`);
+  if (L.canRaise && G.raises < 2 && r > 1 - S.bluff / 2) return T('raise', `bluff-raise: only ${pct(eq)} equity, representing strength`, sizeTo(S.size * 1.2));
+  return T('fold', inRange ? `${pct(eq)} equity < ${pct(odds)} needed by pot odds` : `outside opening range: ${pct(eq)} vs ${opps} (wants ${pct(S.enter * fair)}+)`);
+}
+
+// ---------- hand flow ----------
+function newTable(mode) {
+  G.gen++;
+  if (G.pending) { G.pending.res(null); G.pending = null; }
+  G.mode = mode; G.seed = (Math.random() * 1e9) >>> 0; G.rng = mulberry32(G.seed);
+  const seat0 = mode === 'play' ? ['You', 'human'] : ['Coinflip', 'random'];
+  G.players = [seat0, ...ROSTER].map(([name, style], i) => ({ name, style, seat: i, human: style === 'human', stack: START, buyin: START,
+    hole: [], bet: 0, total: 0, res: [], vpip: 0, pfr: 0 }));
+  G.button = Math.floor(G.rng() * N); G.handNo = 0; G.log = []; G.feed = []; G.paused = false; G.board = []; G.street = 0;
+  if (mode === 'play' && G.speed === 0) G.speed = 1;
+  if (mode === 'spectate') G.speed = 0;
+  syncControls(); render();
+  run(G.gen);
+}
+
+async function run(gen) {
+  while (gen === G.gen) {
+    await playHand(gen);
+    if (gen !== G.gen) return;
+    if (!G.speed) await sleep(0); // yield to the browser between turbo hands
+  }
+}
+
+async function playHand(gen) {
+  const P = G.players;
+  G.handNo++; G.button = (G.button + 1) % N;
+  G.deck = shuffle(G.rng); G.board = []; G.street = 0; G.reveal = false; G.winners = []; G.toAct = -1;
+  log(`\n*** Hand #${G.handNo} · Crucible NLHE ${SB}/${BB} · seed ${G.seed} · Button: ${P[G.button].name} ***`);
+  for (const p of P) {
+    if (G.mode === 'spectate') { p.buyin += START - p.stack; p.stack = START; } // fixed 100bb depth every hand
+    else if (p.stack <= 0) { p.stack = START; p.buyin += START; log(`${p.name} rebuys for ${fmt(START)}`); }
+    Object.assign(p, { hole: [], bet: 0, total: 0, folded: false, allIn: false, acted: false, locked: false,
+      vp: false, pr: false, thought: null, label: '', last: '', start: p.stack });
+  }
+  P.forEach(p => log(`Seat ${p.seat + 1}: ${p.name} (${STYLES[p.style].label}) ${fmt(p.stack)}`));
+  const sb = (G.button + 1) % N, bb = (G.button + 2) % N;
+  for (const [i, amt, what] of [[sb, SB, 'small'], [bb, BB, 'big']]) {
+    const p = P[i]; put(p, Math.min(amt, p.stack)); p.last = `${what} blind`;
+    log(`${p.name} posts ${what} blind ${fmt(p.bet)}`);
+  }
+  G.currentBet = Math.max(P[sb].bet, P[bb].bet); G.minRaise = BB; G.raises = 0;
+  for (let k = 0; k < 2; k++) for (let j = 1; j <= N; j++) P[(G.button + j) % N].hole.push(G.deck.pop());
+  P.forEach(p => { if (p.human || G.mode === 'spectate') log(`Dealt to ${p.name}: [${p.hole.map(cardStr).join(' ')}]`); });
+  log('*** PRE-FLOP ***');
+  render();
+
+  for (let st = 0; st < 4; st++) {
+    if (st > 0) {
+      if (live().length < 2) break;
+      G.deck.pop(); // burn
+      for (let k = st === 1 ? 3 : 1; k > 0; k--) G.board.push(G.deck.pop());
+      for (const p of P) { p.bet = 0; p.acted = false; p.locked = false; p.last = p.folded ? p.last : ''; }
+      G.currentBet = 0; G.minRaise = BB; G.raises = 0; G.street = st;
+      log(`*** ${STREETS[st].toUpperCase()} *** [${G.board.map(cardStr).join(' ')}]`);
+      render(); await wait(dl(650), gen); if (gen !== G.gen) return;
+    }
+    await bettingRound(st === 0 ? (bb + 1) % N : (G.button + 1) % N, gen);
+    if (gen !== G.gen) return;
+    if (live().filter(p => !p.allIn).length < 2) refundUncalled(); // no more betting this hand
+    if (live().length < 2) break;
+    if (live().filter(p => !p.allIn).length < 2 && G.board.length < 5) { G.reveal = true; render(); await wait(dl(700), gen); }
+  }
+  await finishHand(gen);
+}
+
+async function bettingRound(i, gen) {
+  const P = G.players;
+  for (;;) {
+    if (live().length < 2) return;
+    const can = P.filter(p => !p.folded && !p.allIn);
+    if (!can.length || (can.length === 1 && can[0].bet >= G.currentBet)) return;
+    if (!can.some(p => !p.acted || p.bet < G.currentBet)) return;
+    const p = P[i];
+    if (!p.folded && !p.allIn && (!p.acted || p.bet < G.currentBet)) {
+      G.toAct = i; render();
+      let a;
+      if (p.human) a = await new Promise(res => { G.pending = { p, res }; syncControls(); });
+      else { await wait(dl(850), gen); if (gen !== G.gen) return; a = decide(p); }
+      if (gen !== G.gen || !a) return;
+      apply(p, a); G.toAct = -1; render();
+    }
+    i = (i + 1) % N;
+  }
+}
+
+function refundUncalled() {
+  const P = G.players, top = P.reduce((b, p) => p.total > b.total ? p : b, P[0]);
+  const second = Math.max(...P.filter(p => p !== top).map(p => p.total));
+  if (top.total > second) {
+    const d = top.total - second; top.total -= d; top.stack += d; top.bet = Math.max(0, top.bet - d);
+    if (top.stack > 0) top.allIn = false;
+    log(`Uncalled bet (${fmt(d)}) returned to ${top.name}`);
+  }
+}
+
+async function finishHand(gen) {
+  const P = G.players;
+  G.toAct = -1;
+  refundUncalled();
+  const alive = live(), pot = potTotal();
+  if (alive.length === 1) {
+    const w = alive[0]; w.stack += pot; G.winners = [w.seat];
+    log(`${w.name} wins ${fmt(pot)} (no showdown)`);
+  } else {
+    G.reveal = true;
+    while (G.board.length < 5) {
+      G.deck.pop(); for (let k = G.board.length === 0 ? 3 : 1; k > 0; k--) G.board.push(G.deck.pop());
+      G.street = G.board.length === 3 ? 1 : G.board.length - 2;
+      log(`*** ${STREETS[G.street].toUpperCase()} *** [${G.board.map(cardStr).join(' ')}]`);
+      render(); await wait(dl(900), gen); if (gen !== G.gen) return;
+    }
+    G.street = 4;
+    log('*** SHOWDOWN ***');
+    const scores = P.map(p => p.folded ? -1 : evalHand(p.hole.concat(G.board)));
+    alive.forEach(p => { p.label = describe(scores[p.seat]); log(`${p.name} shows [${p.hole.map(cardStr).join(' ')}] (${p.label})`); });
+    const pots = buildPots(P.map(p => p.total), P.map(p => p.folded));
+    const order = [...Array(N).keys()].map(k => (G.button + 1 + k) % N);
+    const { pay, results } = awardPots(pots, scores, order);
+    results.forEach((r, k) => {
+      const name = k ? `side pot ${k}` : 'main pot';
+      log(r.winners.length > 1 ? `${r.winners.map(i => P[i].name).join(' & ')} split the ${name} of ${fmt(r.amount)}`
+                               : `${P[r.winners[0]].name} wins the ${name} of ${fmt(r.amount)} with ${P[r.winners[0]].label}`);
+    });
+    P.forEach((p, i) => p.stack += pay[i]);
+    G.winners = order.filter(i => pay[i] > 0);
+  }
+  for (const p of P) { p.res.push((p.stack - p.start) / BB); p.vpip += p.vp; p.pfr += p.pr; p.bet = 0; }
+  log(`*** SUMMARY *** Pot ${fmt(pot)}${G.board.length ? ' · Board [' + G.board.map(cardStr).join(' ') + ']' : ''}`);
+  render();
+  await wait(G.mode === 'play' ? dl(2400) : dl(1200), gen);
+}
+
+// ---------- rendering ----------
+const cardHTML = (c, cls = '') => c == null ? `<span class="cd back ${cls}"></span>`
+  : `<span class="cd ${(c & 3) === 1 || (c & 3) === 2 ? 'red' : ''} ${cls}"><b>${RANKS[c >> 2] === 'T' ? '10' : RANKS[c >> 2]}</b><i>${SUIT_SYM[c & 3]}</i></span>`;
+const esc = s => String(s).replace(/[&<>]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[ch]);
+
+function stat(p) {
+  const n = p.res.length, sum = p.res.reduce((a, b) => a + b, 0), mean = n ? sum / n : 0;
+  const sd = n > 1 ? Math.sqrt(p.res.reduce((a, x) => a + (x - mean) ** 2, 0) / (n - 1)) : 0;
+  return { n, net: sum * BB, bb100: mean * 100, ci: n > 1 ? 1.96 * sd / Math.sqrt(n) * 100 : NaN,
+           vpip: n ? p.vpip / n : 0, pfr: n ? p.pfr / n : 0 };
+}
+
+let rafQueued = false;
+function render() { if (!rafQueued) { rafQueued = true; requestAnimationFrame(draw); } }
+
+function draw() {
+  rafQueued = false;
+  if (!G.players) return;
+  const P = G.players, table = $('table');
+  P.forEach((p, i) => {
+    let el = table.querySelector('.s' + i);
+    if (!el) { el = document.createElement('div'); el.className = 'seat s' + i; table.appendChild(el); }
+    const show = p.human || G.mode === 'spectate' || (G.reveal && !p.folded);
+    const cards = p.hole.length ? p.hole.map(c => cardHTML(show ? c : null, p.folded ? 'dim' : '')).join('') : '';
+    const th = p.thought;
+    el.className = `seat s${i}${G.toAct === i ? ' turn' : ''}${G.winners.includes(i) ? ' win' : ''}${p.folded ? ' out' : ''}`;
+    el.innerHTML = `<div class="hc">${cards}</div>
+      <div class="nm">${esc(p.name)}${G.button === i ? '<span class="dbtn" title="Dealer button">D</span>' : ''}</div>
+      <div class="st">${STYLES[p.style].label}</div>
+      <div class="sk">${fmt(p.stack)}${p.bet ? ` · <span class="bt">${fmt(p.bet)}</span>` : ''}</div>
+      ${p.label ? `<div class="lbl">${esc(p.label)}</div>` : ''}
+      ${th ? `<div class="bub"><b>eq ${pct(th.eq)}</b><span class="od"> · odds ${pct(th.odds)}</span><br>→ ${esc(th.act)}</div>`
+           : G.toAct === i && !p.human ? '<div class="bub">thinking…</div>' : p.last ? `<div class="bub">${esc(p.last)}</div>` : ''}`;
+  });
+  const pot = potTotal();
+  $('pot').textContent = pot ? 'Pot ' + fmt(pot) : '';
+  $('board').innerHTML = [0, 1, 2, 3, 4].map(k => G.board[k] != null ? cardHTML(G.board[k], 'big') : '<span class="cd big slot"></span>').join('');
+  $('street').textContent = G.handNo ? `Hand ${G.handNo} · ${STREETS[G.street]}` : '';
+
+  const rows = P.map(p => ({ p, s: stat(p) }));
+  if (G.mode === 'spectate') rows.sort((a, b) => b.s.bb100 - a.s.bb100);
+  $('stats').innerHTML = rows.map(({ p, s }) => `<tr><td>${esc(p.name)}</td><td class="num">${s.n}</td><td class="num">${pct(s.vpip)}</td><td class="num">${pct(s.pfr)}</td>
+    <td class="num ${s.net > 0 ? 'up' : s.net < 0 ? 'down' : ''}">${s.net < 0 ? '−' : ''}${fmt(Math.abs(s.net))}</td>
+    <td class="num">${s.n ? s.bb100.toFixed(1) : '—'}${isNaN(s.ci) ? '' : `<br><span class="muted">±${s.ci.toFixed(0)}</span>`}</td></tr>`).join('');
+
+  if (G.mode === 'spectate') {
+    const ext = Math.max(10, ...rows.map(({ s }) => isNaN(s.ci) ? Math.abs(s.bb100) : Math.abs(s.bb100) + s.ci));
+    const x = v => 50 + 50 * v / ext;
+    $('lbHands').textContent = `${G.handNo ? rows[0].s.n : 0} hands`;
+    $('lb').innerHTML = rows.map(({ p, s }, k) => {
+      const lo = s.bb100 - (s.ci || 0), hi = s.bb100 + (s.ci || 0), cls = lo > 0 ? 'up' : hi < 0 ? 'down' : '';
+      return `<div class="lb-row"><span class="r">${k + 1}</span><span><b>${esc(p.name)}</b> <span class="muted">${STYLES[p.style].label}</span></span>
+        <div class="lb-bar" title="95% CI ${lo.toFixed(0)} to ${hi.toFixed(0)} bb/100"><span class="z" style="left:50%"></span>
+        <span class="ci ${cls}" style="left:${x(lo)}%;width:${x(hi) - x(lo)}%"></span><span class="m" style="left:${x(s.bb100)}%"></span></div>
+        <span class="v">${s.bb100 >= 0 ? '+' : '−'}${Math.abs(s.bb100).toFixed(1)}${isNaN(s.ci) ? '' : ' ±' + s.ci.toFixed(0)}</span></div>`;
+    }).join('');
+  }
+
+  $('feed').innerHTML = G.feed.length ? G.feed.map(f => `<li><span><span class="who">${esc(f.name)}</span> <span class="muted">${f.style}</span></span>
+    <span class="nums">eq ${pct(f.eq)} vs ${f.opps} · odds ${pct(f.odds)}</span><span class="why"><b>${esc(f.act)}</b>: ${esc(f.why)}</span></li>`).join('')
+    : '<li class="muted">Decisions will appear here as the bots act.</li>';
+
+  const logEl = $('log'), atBottom = logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight < 40;
+  logEl.textContent = G.log.slice(-250).join('\n').trimStart();
+  if (atBottom) logEl.scrollTop = logEl.scrollHeight;
+  syncControls();
+}
+
+// ---------- human controls ----------
+function syncControls() {
+  $('actPanel').classList.toggle('hidden', G.mode !== 'play');
+  $('lbCard').classList.toggle('hidden', G.mode !== 'spectate');
+  $('statsTitle').textContent = G.mode === 'spectate' ? 'Session stats (by bb/100)' : 'Session stats';
+  $('maxBtn').classList.toggle('hidden', G.mode !== 'spectate');
+  $('seedTxt').textContent = G.seed != null ? `seed ${G.seed}` : '';
+  $('pauseBtn').textContent = G.paused ? 'Resume' : 'Pause';
+  document.querySelectorAll('#modeSeg button').forEach(b => b.classList.toggle('on', b.dataset.m === G.mode));
+  document.querySelectorAll('#speedSeg button').forEach(b => b.classList.toggle('on', +b.dataset.s === G.speed));
+  if (G.mode !== 'play' || !G.players) return;
+  const me = G.players[0], pend = G.pending;
+  $('myHand').textContent = me.hole.length && G.board.length ? describe(evalHand(me.hole.concat(G.board))) : '';
+  const on = !!pend && !G.paused;
+  ['foldBtn', 'callBtn', 'raiseBtn', 'slider'].forEach(id => $(id).disabled = !on);
+  document.querySelectorAll('#presets button').forEach(b => b.disabled = !on);
+  if (!pend) {
+    const t = G.players[G.toAct];
+    $('status').textContent = G.paused ? 'Paused' : t ? `Waiting for ${t.name}…` : me.folded ? 'You folded. Watching the hand play out.' : 'Dealing…';
+    $('callBtn').firstChild.textContent = 'Check '; $('raiseBtn').firstChild.textContent = 'Raise '; $('amt').textContent = '—';
+    return;
+  }
+  const L = legal(me), s = $('slider');
+  $('status').textContent = L.toCall ? `Your turn: ${fmt(L.toCall)} to call, pot ${fmt(potTotal())}` : `Your turn: check or bet, pot ${fmt(potTotal())}`;
+  $('callBtn').firstChild.textContent = L.toCall ? `Call ${fmt(L.toCall)} ` : 'Check ';
+  $('raiseBtn').disabled = !L.canRaise; $('slider').disabled = !L.canRaise;
+  document.querySelectorAll('#presets button').forEach(b => b.disabled = !L.canRaise);
+  if (L.canRaise) {
+    if (+s.min !== L.minTo || +s.max !== L.maxTo) { s.min = L.minTo; s.max = L.maxTo; G.raiseTo = L.minTo; }
+    G.raiseTo = Math.min(L.maxTo, Math.max(L.minTo, G.raiseTo || L.minTo)); s.value = G.raiseTo;
+    $('amt').textContent = fmt(G.raiseTo);
+    $('raiseBtn').firstChild.textContent = (G.raiseTo === L.maxTo ? 'All-in ' : G.currentBet ? 'Raise to ' : 'Bet ') + (G.raiseTo === L.maxTo ? '' : fmt(G.raiseTo) + ' ');
+  } else { $('amt').textContent = '—'; $('raiseBtn').firstChild.textContent = 'Raise '; }
+}
+
+function act(type) {
+  const pend = G.pending; if (!pend || G.paused) return;
+  const L = legal(pend.p);
+  if (type === 'raise' && !L.canRaise) return;
+  G.pending = null;
+  pend.res({ type: type === 'call' && !L.toCall ? 'check' : type, to: G.raiseTo });
+}
+
+$('foldBtn').onclick = () => act('fold');
+$('callBtn').onclick = () => act('call');
+$('raiseBtn').onclick = () => act('raise');
+$('slider').oninput = e => { // snap to $50 increments, but keep min and all-in reachable
+  const s = e.target, v = +s.value;
+  G.raiseTo = v >= +s.max - 25 ? +s.max : Math.max(+s.min, Math.round(v / 50) * 50); syncControls();
+};
+$('presets').onclick = e => {
+  const b = e.target.closest('button'); if (!b || !G.pending) return;
+  const L = legal(G.pending.p), v = b.dataset.p;
+  G.raiseTo = v === 'min' ? L.minTo : v === 'all' ? L.maxTo : clampTo(L, potRaiseTo(L, +v));
+  syncControls();
+};
+document.addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey || /^(TEXTAREA|SELECT)$/.test(e.target.tagName) || (e.target.tagName === 'INPUT' && e.target.type !== 'range')) return;
+  const k = { f: 'fold', c: 'call', r: 'raise' }[e.key.toLowerCase()];
+  if (k && G.pending) { e.preventDefault(); act(k); }
+});
+$('modeSeg').onclick = e => { const b = e.target.closest('button'); if (b && b.dataset.m !== G.mode) newTable(b.dataset.m); };
+$('newBtn').onclick = () => newTable(G.mode);
+$('pauseBtn').onclick = () => { G.paused = !G.paused; syncControls(); };
+$('speedSeg').onclick = e => { const b = e.target.closest('button'); if (b) { G.speed = +b.dataset.s; syncControls(); } };
+$('exportBtn').onclick = () => {
+  const blob = new Blob([G.log.join('\n').trimStart() + '\n'], { type: 'text/plain' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `crucible-poker-${G.mode}-seed${G.seed}.txt`; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+
+newTable('play');
+</script>
+</body>
+</html>
