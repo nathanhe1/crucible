@@ -15,8 +15,6 @@ A static website for a fictional AI-evaluation lab. It has working demos of stat
 ### Poker Room
 ![Poker Room](docs/screenshots/poker.png)
 
-<img src="docs/screenshots/poker-mobile.png" alt="Poker Room on a phone" width="300">
-
 ### Arena: fork & replay
 ![Arena fork and replay tree](docs/screenshots/arena.png)
 
