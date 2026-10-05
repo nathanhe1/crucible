@@ -2,6 +2,29 @@
 
 A static website for a fictional AI-evaluation lab. It has working demos of stateful environments and eval tooling. There is no build step and no dependencies.
 
+![Crucible home page](docs/screenshots/index.png)
+
+## Screenshots
+
+### Router: run builder
+![Router](docs/screenshots/router.png)
+
+### Trading Floor
+![Trading Floor](docs/screenshots/trading.png)
+
+### Poker Room
+![Poker Room](docs/screenshots/poker.png)
+
+<img src="docs/screenshots/poker-mobile.png" alt="Poker Room on a phone" width="300">
+
+### Arena: fork & replay
+![Arena fork and replay tree](docs/screenshots/arena.png)
+
+### Methodology
+![Methodology](docs/screenshots/methodology.png)
+
+## Pages
+
 | Page | What it does |
 |---|---|
 | `index.html` | Landing page, plus a form that generates an evaluation spec |
